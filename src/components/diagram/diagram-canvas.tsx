@@ -19,12 +19,15 @@ import {
   type OnSelectionChangeParams,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
-import { ChevronRight, Home } from "lucide-react";
+import { toPng } from "html-to-image";
+import { ChevronRight, Download, Home } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { CompositeNode, type CompositeNodeData } from "@/components/diagram/composite-node";
 import { PropertiesPanel } from "@/components/diagram/properties-panel";
+import { ProjectSwitcher } from "@/components/diagram/project-switcher";
 import { buildSeedDiagram } from "@/lib/diagram-seed";
 import {
+  DEFAULT_DIAGRAM_NAME,
   EDGE_STYLES,
   NODE_COLORS,
   type DiagramDocument,
@@ -199,6 +202,8 @@ function DiagramCanvasInner(): React.JSX.Element {
   const [selectedNode, setSelectedNode] = useState<DiagramNodeData | null>(null);
   const [selectedEdge, setSelectedEdge] = useState<DiagramEdgeData | null>(null);
   const [selectedNodeIds, setSelectedNodeIds] = useState<string[]>([]);
+  const [projectName, setProjectName] = useState(DEFAULT_DIAGRAM_NAME);
+  const wrapperRef = useRef<HTMLDivElement>(null);
   const { fitView } = useReactFlow();
 
   const scopeId = scopeStack.at(-1)?.id ?? null;
@@ -276,9 +281,10 @@ function DiagramCanvasInner(): React.JSX.Element {
   useEffect(() => {
     let cancelled = false;
     const load = async (): Promise<void> => {
-      const res = await fetch("/api/diagram");
+      setLoading(true);
+      const res = await fetch(`/api/diagram?name=${encodeURIComponent(projectName)}`);
       const saved = (await res.json()) as DiagramDocument | null;
-      const doc = saved ?? buildSeedDiagram();
+      const doc = saved ?? (projectName === DEFAULT_DIAGRAM_NAME ? buildSeedDiagram() : { nodes: [], edges: [] });
       if (cancelled) return;
       // Re-flow any already-expanded node's children so stale/seeded
       // positions (sized for an older, smaller default card) never overlap.
@@ -290,10 +296,17 @@ function DiagramCanvasInner(): React.JSX.Element {
       }
       doc.nodes = normalizedNodes;
       diagramRef.current = doc;
+      setScopeStack([]);
+      setSelectedNode(null);
+      setSelectedEdge(null);
+      setSelectedNodeIds([]);
       rebuildFlow(doc, null, onToggleExpand, onDrillIn);
       setLoading(false);
       if (!saved) {
-        void fetch("/api/diagram", { method: "PUT", body: JSON.stringify(doc) });
+        void fetch(`/api/diagram?name=${encodeURIComponent(projectName)}`, {
+          method: "PUT",
+          body: JSON.stringify(doc),
+        });
       }
     };
     void load();
@@ -301,7 +314,7 @@ function DiagramCanvasInner(): React.JSX.Element {
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [projectName]);
 
   const handleNodesChange = useCallback(
     (changes: NodeChange<Node<CompositeNodeData>>[]) => {
@@ -493,7 +506,7 @@ function DiagramCanvasInner(): React.JSX.Element {
   const handleSave = useCallback(async () => {
     setSaving(true);
     try {
-      await fetch("/api/diagram", {
+      await fetch(`/api/diagram?name=${encodeURIComponent(projectName)}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(diagramRef.current),
@@ -501,7 +514,34 @@ function DiagramCanvasInner(): React.JSX.Element {
     } finally {
       setSaving(false);
     }
-  }, []);
+  }, [projectName]);
+
+  const handleExportPng = useCallback(async () => {
+    const testEl = document.createElement("div");
+    testEl.style.width = "100px";
+    testEl.style.height = "100px";
+    testEl.style.background = "red";
+    testEl.textContent = "hi";
+    document.body.appendChild(testEl);
+    console.log("[export] testing toPng on trivial div");
+    const testUrl = await toPng(testEl, { backgroundColor: "#000000" });
+    console.log("[export] trivial toPng resolved, length", testUrl.length);
+    document.body.removeChild(testEl);
+
+    const viewportEl = wrapperRef.current?.querySelector<HTMLElement>(".react-flow__viewport");
+    if (!viewportEl) return;
+    void fitView({ padding: 0.1, duration: 0 });
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    // A literal hex color, not a CSS var resolving to oklch()/lab() — those
+    // modern color functions can hang html-to-image's style serialization.
+    // skipFonts avoids html-to-image trying (and hanging) on inlining
+    // Next.js's optimized font files in dev mode.
+    const dataUrl = await toPng(viewportEl, { backgroundColor: "#0a0a0f", pixelRatio: 2, skipFonts: true });
+    const link = document.createElement("a");
+    link.download = `${projectName}.png`;
+    link.href = dataUrl;
+    link.click();
+  }, [fitView, projectName]);
 
   const proOptions = useMemo(() => ({ hideAttribution: true }), []);
 
@@ -515,15 +555,19 @@ function DiagramCanvasInner(): React.JSX.Element {
 
   return (
     <div className="flex h-full w-full">
-      <div className="relative min-w-0 flex-1">
-        <div className="absolute left-3 top-3 z-10 flex items-center gap-1 rounded-lg border bg-card/90 px-2 py-1.5 text-sm shadow-sm">
-          <button
-            type="button"
-            className="flex items-center gap-1 rounded px-1 py-0.5 text-muted-foreground hover:text-foreground"
-            onClick={() => setScopeStack([])}
-          >
-            <Home className="h-3.5 w-3.5" /> Top
-          </button>
+      <div ref={wrapperRef} className="relative min-w-0 flex-1">
+        <div className="absolute left-3 top-3 z-10 flex items-center gap-2">
+          <div className="rounded-lg border bg-card/90 px-2 py-1.5 shadow-sm">
+            <ProjectSwitcher currentProject={projectName} onSwitch={setProjectName} />
+          </div>
+          <div className="flex items-center gap-1 rounded-lg border bg-card/90 px-2 py-1.5 text-sm shadow-sm">
+            <button
+              type="button"
+              className="flex items-center gap-1 rounded px-1 py-0.5 text-muted-foreground hover:text-foreground"
+              onClick={() => setScopeStack([])}
+            >
+              <Home className="h-3.5 w-3.5" /> Top
+            </button>
           {scopeStack.map((crumb, i) => (
             <span key={crumb.id} className="flex items-center gap-1">
               <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
@@ -539,9 +583,13 @@ function DiagramCanvasInner(): React.JSX.Element {
                 {crumb.label}
               </button>
             </span>
-          ))}
+            ))}
+          </div>
         </div>
-        <div className="absolute right-3 top-3 z-10">
+        <div className="absolute right-3 top-3 z-10 flex items-center gap-2">
+          <Button size="sm" variant="outline" onClick={() => void handleExportPng()}>
+            <Download className="h-3.5 w-3.5" /> Export PNG
+          </Button>
           <Button size="sm" onClick={() => void handleSave()} disabled={saving}>
             {saving ? "Saving…" : "Save"}
           </Button>

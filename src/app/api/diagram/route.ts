@@ -2,26 +2,26 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { connectToDatabase } from "@/lib/db";
 import { Diagram } from "@/lib/models/diagram";
-import type { DiagramDocument } from "@/lib/diagram-types";
-
-const DIAGRAM_NAME = "k3s-platform";
+import { DEFAULT_DIAGRAM_NAME, type DiagramDocument } from "@/lib/diagram-types";
 
 /**
- * Load the single saved diagram, or null if it hasn't been created yet.
+ * Load the named diagram (`?name=`), or null if it hasn't been created yet.
  */
-export async function GET(): Promise<NextResponse> {
+export async function GET(request: Request): Promise<NextResponse> {
   const session = await auth();
   if (!session?.user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  const name = new URL(request.url).searchParams.get("name") ?? DEFAULT_DIAGRAM_NAME;
   await connectToDatabase();
-  const diagram = await Diagram.findOne({ name: DIAGRAM_NAME }).lean();
+  const diagram = await Diagram.findOne({ name }).lean();
   return NextResponse.json(diagram ? { nodes: diagram.nodes, edges: diagram.edges } : null);
 }
 
 /**
- * Replace the saved diagram's nodes and edges wholesale.
+ * Replace the named diagram's (`?name=`) nodes and edges wholesale, creating
+ * it if it doesn't exist yet.
  */
 export async function PUT(request: Request): Promise<NextResponse> {
   const session = await auth();
@@ -29,13 +29,33 @@ export async function PUT(request: Request): Promise<NextResponse> {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  const name = new URL(request.url).searchParams.get("name") ?? DEFAULT_DIAGRAM_NAME;
   const body = (await request.json()) as DiagramDocument;
 
   await connectToDatabase();
   await Diagram.findOneAndUpdate(
-    { name: DIAGRAM_NAME },
-    { name: DIAGRAM_NAME, nodes: body.nodes, edges: body.edges },
+    { name },
+    { name, nodes: body.nodes, edges: body.edges },
     { upsert: true },
   );
+  return NextResponse.json({ ok: true });
+}
+
+/**
+ * Delete the named diagram (`?name=`).
+ */
+export async function DELETE(request: Request): Promise<NextResponse> {
+  const session = await auth();
+  if (!session?.user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const name = new URL(request.url).searchParams.get("name");
+  if (!name) {
+    return NextResponse.json({ error: "Missing name" }, { status: 400 });
+  }
+
+  await connectToDatabase();
+  await Diagram.deleteOne({ name });
   return NextResponse.json({ ok: true });
 }
