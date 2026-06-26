@@ -1,8 +1,15 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Network, type LucideIcon } from "lucide-react";
+import {
+  LayoutDashboard,
+  Network,
+  PanelLeftClose,
+  PanelLeftOpen,
+  type LucideIcon,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useResizableWidth } from "@/lib/use-resizable-width";
 
@@ -31,21 +38,70 @@ function isActive(pathname: string, href: string): boolean {
 }
 
 /**
- * Application sidebar with the top-level navigation links.
+ * Application sidebar with the top-level navigation links. Collapses to a slim
+ * icon rail to free up horizontal space.
  * @returns The rendered sidebar nav.
  */
 export function AppSidebar(): React.JSX.Element {
   const pathname = usePathname();
   const { width, onPointerDown } = useResizableWidth(256, 180, 420, "right");
+  const [collapsed, setCollapsed] = useState(false);
+
+  // Start collapsed on narrow (mobile) viewports to maximize canvas room.
+  useEffect(() => {
+    if (window.innerWidth < 768) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setCollapsed(true);
+    }
+  }, []);
+
+  if (collapsed) {
+    return (
+      <div className="flex h-full w-12 shrink-0 flex-col items-center gap-1 border-r bg-sidebar py-3 text-sidebar-foreground">
+        <button
+          type="button"
+          title="Expand sidebar"
+          onClick={() => setCollapsed(false)}
+          className="flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+        >
+          <PanelLeftOpen className="h-4 w-4" />
+        </button>
+        <div className="my-1 h-px w-6 bg-sidebar-border" />
+        {NAV_ITEMS.map(({ label, href, icon: Icon }) => (
+          <Link
+            key={href}
+            href={href}
+            title={label}
+            className={cn(
+              "flex h-8 w-8 items-center justify-center rounded-md transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+              isActive(pathname, href) && "bg-sidebar-accent text-sidebar-accent-foreground",
+            )}
+          >
+            <Icon className="h-4 w-4" />
+          </Link>
+        ))}
+      </div>
+    );
+  }
 
   return (
     <aside
       style={{ width }}
       className="relative flex h-full shrink-0 flex-col border-r bg-sidebar text-sidebar-foreground"
     >
-      <div className="border-b px-4 py-4">
-        <p className="text-sm font-semibold">Infra Diagram</p>
-        <p className="text-xs text-muted-foreground">Model the k3s platform</p>
+      <div className="flex items-start justify-between gap-2 border-b px-4 py-4">
+        <div className="min-w-0">
+          <p className="truncate text-sm font-semibold">Infra Diagram</p>
+          <p className="truncate text-xs text-muted-foreground">Model the k3s platform</p>
+        </div>
+        <button
+          type="button"
+          title="Collapse sidebar"
+          onClick={() => setCollapsed(true)}
+          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+        >
+          <PanelLeftClose className="h-4 w-4" />
+        </button>
       </div>
       <nav className="flex-1 overflow-y-auto px-2 py-3">
         <ul className="flex flex-col gap-0.5">

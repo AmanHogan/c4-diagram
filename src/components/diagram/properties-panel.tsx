@@ -1,6 +1,7 @@
 "use client";
 
-import { Trash2, Group, Ungroup, Plus } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { Trash2, Group, Ungroup, Plus, PanelRightClose, PanelRightOpen } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -45,6 +46,49 @@ const ARROW_STYLES: { value: ArrowStyle; label: string }[] = [
   { value: "none", label: "No arrowheads —" },
 ];
 
+interface FillColorPickerProps {
+  value: string;
+  onCommit: (color: string) => void;
+}
+
+/**
+ * Native color input that only commits (triggering the expensive diagram
+ * rebuild) on the picker's `change` event — i.e. once, when the user closes
+ * it — instead of on every drag movement inside the picker. React's onChange
+ * fires continuously on the underlying `input` event, which was triggering a
+ * full rebuild per pixel of drag and could stall/close the native picker.
+ * @param props The current color and a commit callback.
+ * @returns The rendered color input.
+ */
+function FillColorPicker({ value, onCommit }: FillColorPickerProps): React.JSX.Element {
+  const ref = useRef<HTMLInputElement>(null);
+  const [local, setLocal] = useState(value);
+
+  useEffect(() => {
+    setLocal(value);
+  }, [value]);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const handleChange = (e: Event): void => {
+      onCommit((e.target as HTMLInputElement).value);
+    };
+    el.addEventListener("change", handleChange);
+    return () => el.removeEventListener("change", handleChange);
+  }, [onCommit]);
+
+  return (
+    <input
+      ref={ref}
+      type="color"
+      className="h-8 w-full cursor-pointer rounded-md border border-input bg-transparent"
+      value={local}
+      onInput={(e) => setLocal(e.currentTarget.value)}
+    />
+  );
+}
+
 interface PropertiesPanelProps {
   selectedNode: DiagramNodeData | null;
   selectedEdge: DiagramEdgeData | null;
@@ -77,16 +121,53 @@ export function PropertiesPanel({
   onAddNode,
 }: PropertiesPanelProps): React.JSX.Element {
   const { width, onPointerDown } = useResizableWidth(288, 240, 480, "left");
+  const [collapsed, setCollapsed] = useState(false);
+
+  // Start collapsed on narrow (mobile) viewports to maximize canvas room.
+  useEffect(() => {
+    if (window.innerWidth < 768) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setCollapsed(true);
+    }
+  }, []);
+
+  if (collapsed) {
+    return (
+      <div className="flex h-full w-12 shrink-0 flex-col items-center border-l bg-sidebar py-3">
+        <button
+          type="button"
+          title="Expand panel"
+          onClick={() => setCollapsed(false)}
+          className="flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+        >
+          <PanelRightOpen className="h-4 w-4" />
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div
       style={{ width }}
-      className="relative flex h-full shrink-0 flex-col gap-4 overflow-y-auto border-l bg-card/95 p-4"
+      className="relative flex h-full shrink-0 flex-col gap-4 overflow-y-auto border-l bg-sidebar p-4"
     >
       <div
         onPointerDown={onPointerDown}
         className="absolute left-0 top-0 h-full w-1.5 cursor-col-resize hover:bg-primary/40"
       />
+      <div className="flex items-center justify-between">
+        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+          Properties
+        </p>
+        <button
+          type="button"
+          title="Collapse panel"
+          onClick={() => setCollapsed(true)}
+          className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+        >
+          <PanelRightClose className="h-4 w-4" />
+        </button>
+      </div>
       <div>
         <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
           Add node
@@ -188,11 +269,9 @@ export function PropertiesPanel({
 
           <label className="flex flex-col gap-1 text-xs">
             Fill color
-            <input
-              type="color"
-              className="h-8 w-full cursor-pointer rounded-md border border-input bg-transparent"
+            <FillColorPicker
               value={selectedNode.fillColor ?? NODE_COLORS[selectedNode.kind]}
-              onChange={(e) => onUpdateNode(selectedNode.id, { fillColor: e.target.value })}
+              onCommit={(color) => onUpdateNode(selectedNode.id, { fillColor: color })}
             />
           </label>
 

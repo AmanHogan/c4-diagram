@@ -3,8 +3,8 @@ import "./globals.css";
 import { Providers } from "./providers";
 
 export const metadata: Metadata = {
-  title: "Commitment Tracker",
-  description: "Track business and development commitments, skills, and more.",
+  title: "C4 Diagram",
+  description: "Open Source, Free tool to visualize and track C4 model diagrams for software architecture.",
 };
 
 /**

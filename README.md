@@ -1,7 +1,6 @@
 # C4-digram (Next.js + MongoDB)
 
-A web rewrite of the Electron "Commitment Tracker" desktop app. Same features, now a
-multi-user web app: Next.js (App Router) + NextAuth + MongoDB (Mongoose) + Tailwind/shadcn.
+Multi-user web app: Next.js (App Router) + NextAuth + MongoDB (Mongoose) + Tailwind/shadcn.
 
 > **Standards:** all contributors (human or agent) must follow
 > [AINSTRUCTIONS.md](./AINSTRUCTIONS.md). `npm run lint` and `npm run typecheck` must pass.
@@ -67,5 +66,3 @@ Electron app (`../commitments-electron/src/main/database.ts`), copy the pattern:
    `toDTO()` serializer. (See `src/app/dashboard/skills/actions.ts`.)
 4. **Page** — a server component that calls the `get…` action and passes data to a
    `'use client'` island for interactivity. (See `skills/page.tsx` + `skills-client.tsx`.)
-
-

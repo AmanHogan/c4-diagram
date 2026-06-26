@@ -45,6 +45,26 @@ const SHAPE_STYLE: Record<NodeShape, React.CSSProperties> = {
 // centered (and padded more) instead of left-aligned like a normal card.
 const CENTERED_SHAPES: NodeShape[] = ["diamond", "ellipse"];
 
+// Dark base the accent color is tinted into for the box fill.
+const FILL_BASE: [number, number, number] = [30, 32, 32];
+
+/**
+ * Blend a hex accent color into the dark base so each box reads as a deep,
+ * desaturated tint of its category color rather than a flat grey.
+ * @param hex Accent color, e.g. "#3b82f6".
+ * @param ratio How much of the accent to mix in (0–1).
+ * @returns An `rgb(...)` string safe for inline styles and PNG export.
+ */
+function tintFill(hex: string, ratio: number): string {
+  const h = hex.replace("#", "");
+  if (h.length < 6) return `rgb(${FILL_BASE.join(",")})`;
+  const r = parseInt(h.slice(0, 2), 16);
+  const g = parseInt(h.slice(2, 4), 16);
+  const b = parseInt(h.slice(4, 6), 16);
+  const mix = (c: number, base: number): number => Math.round(c * ratio + base * (1 - ratio));
+  return `rgb(${mix(r, FILL_BASE[0])}, ${mix(g, FILL_BASE[1])}, ${mix(b, FILL_BASE[2])})`;
+}
+
 /**
  * A diagram node rendered as a card. Collapsed: a compact labeled card.
  * Expanded: a bordered container sized from the node's `style`, with child
@@ -83,9 +103,10 @@ function CompositeNodeImpl({ id, data, selected }: NodeProps): React.JSX.Element
       <NodeResizer isVisible={selected} minWidth={180} minHeight={64} color={color} handleStyle={{ width: 8, height: 8 }} />
 
       <div
-        className="h-full w-full cursor-pointer bg-card/95 shadow-md transition-shadow hover:shadow-lg"
+        className="h-full w-full cursor-pointer shadow-md transition-shadow hover:shadow-lg"
         style={{
           ...SHAPE_STYLE[shape],
+          backgroundColor: tintFill(color, 0.18),
           borderWidth: 2,
           borderStyle: BORDER_STYLE_CSS[borderStyle],
           borderColor: color,
