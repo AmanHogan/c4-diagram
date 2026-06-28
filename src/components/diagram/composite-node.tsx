@@ -20,6 +20,7 @@ export interface CompositeNodeData extends Record<string, unknown> {
   borderStyle: LineStyle;
   hasChildren: boolean;
   expanded: boolean;
+  readOnly?: boolean;
   onToggleExpand: (id: string) => void;
   onDrillIn: (id: string) => void;
 }
@@ -84,6 +85,7 @@ function CompositeNodeImpl({ id, data, selected }: NodeProps): React.JSX.Element
     borderStyle,
     hasChildren,
     expanded,
+    readOnly,
     onToggleExpand,
     onDrillIn,
   } = data as CompositeNodeData;
@@ -100,7 +102,13 @@ function CompositeNodeImpl({ id, data, selected }: NodeProps): React.JSX.Element
         }
       }}
     >
-      <NodeResizer isVisible={selected} minWidth={180} minHeight={64} color={color} handleStyle={{ width: 8, height: 8 }} />
+      <NodeResizer
+        isVisible={selected && !readOnly}
+        minWidth={180}
+        minHeight={64}
+        color={color}
+        handleStyle={{ width: 8, height: 8 }}
+      />
 
       <div
         className="h-full w-full cursor-pointer shadow-md transition-shadow hover:shadow-lg"

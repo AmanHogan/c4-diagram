@@ -1,37 +1,121 @@
+"use client";
+
+import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Network } from "lucide-react";
-import { auth } from "@/lib/auth";
+import { Compass, Layers, Network, Sparkles } from "lucide-react";
+
+interface DashboardItem {
+  type: "diagram" | "flashcard-set";
+  id: string;
+  name: string;
+  ownerName?: string;
+  updatedAt: string;
+}
+
+function itemHref(item: DashboardItem): string {
+  return item.type === "diagram" ? `/dashboard/diagram/${item.id}` : `/dashboard/flashcards/${item.id}`;
+}
 
 /**
- * Dashboard landing page: a greeting plus a link into the diagram canvas.
+ * A card linking to a recent or popular diagram/flashcard set.
+ * @param props The item to render and whether to show its owner's name.
+ * @returns The rendered card.
+ */
+function ItemCard({ item, showOwner }: { item: DashboardItem; showOwner: boolean }): React.JSX.Element {
+  const Icon = item.type === "diagram" ? Network : Layers;
+  return (
+    <Link
+      href={itemHref(item)}
+      className="flex items-center gap-3 rounded-xl border bg-card p-4 transition-all hover:-translate-y-0.5 hover:border-primary hover:shadow-md"
+    >
+      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+        <Icon className="h-4 w-4" />
+      </span>
+      <div className="min-w-0">
+        <p className="truncate text-sm font-medium">{item.name}</p>
+        <p className="truncate text-xs text-muted-foreground">
+          {showOwner && item.ownerName ? `by ${item.ownerName} · ` : ""}
+          {new Date(item.updatedAt).toLocaleDateString()}
+        </p>
+      </div>
+    </Link>
+  );
+}
+
+/**
+ * Dashboard landing page: "Jump back in" (the user's own recent items,
+ * private) and "Popular with other learners" (public items from anyone),
+ * each in its own clearly separated, darker-outlined section.
  * @returns The rendered dashboard home.
  */
-export default async function DashboardHome(): Promise<React.JSX.Element> {
-  const session = await auth();
+export default function DashboardHome(): React.JSX.Element {
+  const [recent, setRecent] = useState<DashboardItem[] | null>(null);
+  const [popular, setPopular] = useState<DashboardItem[] | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    const load = async (): Promise<void> => {
+      const res = await fetch("/api/dashboard");
+      const data = (await res.json()) as { recent: DashboardItem[]; popular: DashboardItem[] };
+      if (!cancelled) {
+        setRecent(data.recent);
+        setPopular(data.popular);
+      }
+    };
+    void load();
+    return (): void => {
+      cancelled = true;
+    };
+  }, []);
 
   return (
-    <div className="mx-auto max-w-3xl">
-      <h1 className="mb-1 text-2xl font-semibold">
-        Welcome{session?.user?.name ? `, ${session.user.name}` : ""}
-      </h1>
+    <div className="mx-auto max-w-4xl">
+      <h1 className="mb-1 text-2xl font-semibold">Dashboard</h1>
       <p className="mb-8 text-sm text-muted-foreground">
-        Model and explore your infrastructure as an expandable node diagram.
+        Pick up where you left off, or see what other learners are studying.
       </p>
 
-      <Link
-        href="/dashboard/diagram"
-        className="group flex items-center gap-3 rounded-xl border border-border bg-card p-5 transition-all duration-300 hover:-translate-y-1 hover:border-primary hover:shadow-lg hover:shadow-primary/10"
-      >
-        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary transition-transform duration-300 group-hover:scale-110">
-          <Network className="h-5 w-5" />
-        </span>
-        <div>
-          <h3 className="font-medium leading-tight">Diagram</h3>
-          <p className="text-sm text-muted-foreground">
-            Hardware, cluster networking, namespaces, and external access — drag, connect, expand.
-          </p>
+      <section className="mb-6 rounded-2xl border-2 border-sidebar-border bg-sidebar/60 p-5">
+        <div className="mb-4 flex items-center gap-2">
+          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-500/15 text-blue-400">
+            <Compass className="h-4 w-4" />
+          </span>
+          <h2 className="text-lg font-bold tracking-tight">Jump back in</h2>
         </div>
-      </Link>
+        {!recent ? (
+          <p className="text-sm text-muted-foreground">Loading…</p>
+        ) : recent.length === 0 ? (
+          <p className="text-sm text-muted-foreground">
+            Nothing yet — create a diagram or flashcard set to get started.
+          </p>
+        ) : (
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            {recent.map((item) => (
+              <ItemCard key={`${item.type}-${item.id}`} item={item} showOwner={false} />
+            ))}
+          </div>
+        )}
+      </section>
+
+      <section className="rounded-2xl border-2 border-sidebar-border bg-sidebar/60 p-5">
+        <div className="mb-4 flex items-center gap-2">
+          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-500/15 text-amber-400">
+            <Sparkles className="h-4 w-4" />
+          </span>
+          <h2 className="text-base font-semibold text-foreground/90">Popular with other learners</h2>
+        </div>
+        {!popular ? (
+          <p className="text-sm text-muted-foreground">Loading…</p>
+        ) : popular.length === 0 ? (
+          <p className="text-sm text-muted-foreground">No public sets or diagrams yet.</p>
+        ) : (
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            {popular.map((item) => (
+              <ItemCard key={`${item.type}-${item.id}`} item={item} showOwner />
+            ))}
+          </div>
+        )}
+      </section>
     </div>
   );
 }

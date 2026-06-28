@@ -1,10 +1,11 @@
 import type { ReactNode } from "react";
 import { auth } from "@/lib/auth";
 import { AppSidebar } from "@/components/app-sidebar";
-import { SignOutButton } from "@/components/sign-out-button";
+import { HeaderBar } from "@/components/dashboard/header-bar";
 
 /**
- * Authenticated dashboard shell: sidebar + header + scrollable content.
+ * Authenticated dashboard shell: sidebar + header (search, new, avatar) +
+ * scrollable content.
  * @param props Contains the page content as `children`.
  * @returns The dashboard layout.
  */
@@ -19,12 +20,7 @@ export default async function DashboardLayout({
     <div className="flex h-screen overflow-hidden">
       <AppSidebar />
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex h-14 shrink-0 items-center justify-between border-b bg-sidebar px-4">
-          <span className="text-sm font-medium text-muted-foreground">
-            {session?.user?.name ?? "C4 Diagram"}
-          </span>
-          <SignOutButton />
-        </header>
+        <HeaderBar userName={session?.user?.name ?? "?"} />
         <main className="flex-1 overflow-auto p-6">{children}</main>
       </div>
     </div>

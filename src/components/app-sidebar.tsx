@@ -1,10 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
+  FolderClosed,
   LayoutDashboard,
+  Layers,
   Network,
   PanelLeftClose,
   PanelLeftOpen,
@@ -21,7 +23,9 @@ interface NavItem {
 
 const NAV_ITEMS: NavItem[] = [
   { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
-  { label: "Diagram", href: "/dashboard/diagram", icon: Network },
+  { label: "Diagrams", href: "/dashboard/diagrams", icon: Network },
+  { label: "Flashcards", href: "/dashboard/flashcards", icon: Layers },
+  { label: "Folders", href: "/dashboard/folders", icon: FolderClosed },
 ];
 
 /**
@@ -38,22 +42,15 @@ function isActive(pathname: string, href: string): boolean {
 }
 
 /**
- * Application sidebar with the top-level navigation links. Collapses to a slim
- * icon rail to free up horizontal space.
+ * Application sidebar with the top-level navigation links. Starts collapsed
+ * to a slim icon rail on every load, maximizing room for content; expand with
+ * the rail's toggle button.
  * @returns The rendered sidebar nav.
  */
 export function AppSidebar(): React.JSX.Element {
   const pathname = usePathname();
   const { width, onPointerDown } = useResizableWidth(256, 180, 420, "right");
-  const [collapsed, setCollapsed] = useState(false);
-
-  // Start collapsed on narrow (mobile) viewports to maximize canvas room.
-  useEffect(() => {
-    if (window.innerWidth < 768) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setCollapsed(true);
-    }
-  }, []);
+  const [collapsed, setCollapsed] = useState(true);
 
   if (collapsed) {
     return (
@@ -91,8 +88,8 @@ export function AppSidebar(): React.JSX.Element {
     >
       <div className="flex items-start justify-between gap-2 border-b px-4 py-4">
         <div className="min-w-0">
-          <p className="truncate text-sm font-semibold">Infra Diagram</p>
-          <p className="truncate text-xs text-muted-foreground">Model the k3s platform</p>
+          <p className="truncate text-sm font-semibold">Learn Workspace</p>
+          <p className="truncate text-xs text-muted-foreground">Diagrams & flashcards</p>
         </div>
         <button
           type="button"

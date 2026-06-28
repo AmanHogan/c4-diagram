@@ -65,6 +65,7 @@ function FillColorPicker({ value, onCommit }: FillColorPickerProps): React.JSX.E
   const [local, setLocal] = useState(value);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setLocal(value);
   }, [value]);
 
@@ -75,7 +76,7 @@ function FillColorPicker({ value, onCommit }: FillColorPickerProps): React.JSX.E
       onCommit((e.target as HTMLInputElement).value);
     };
     el.addEventListener("change", handleChange);
-    return () => el.removeEventListener("change", handleChange);
+    return (): void => el.removeEventListener("change", handleChange);
   }, [onCommit]);
 
   return (
@@ -90,6 +91,7 @@ function FillColorPicker({ value, onCommit }: FillColorPickerProps): React.JSX.E
 }
 
 interface PropertiesPanelProps {
+  readOnly?: boolean;
   selectedNode: DiagramNodeData | null;
   selectedEdge: DiagramEdgeData | null;
   selectedNodeIds: string[];
@@ -109,6 +111,7 @@ interface PropertiesPanelProps {
  * @returns The rendered panel.
  */
 export function PropertiesPanel({
+  readOnly = false,
   selectedNode,
   selectedEdge,
   selectedNodeIds,
@@ -168,27 +171,33 @@ export function PropertiesPanel({
           <PanelRightClose className="h-4 w-4" />
         </button>
       </div>
-      <div>
-        <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-          Add node
+      {readOnly ? (
+        <p className="rounded-md border border-dashed px-2 py-1.5 text-xs text-muted-foreground">
+          View only — fork this diagram to edit it.
         </p>
-        <Select onValueChange={(value) => onAddNode(value as NodeKind)}>
-          <SelectTrigger size="sm">
-            <span className="flex items-center gap-1.5 text-muted-foreground">
-              <Plus className="h-3.5 w-3.5" /> <SelectValue placeholder="Choose a kind…" />
-            </span>
-          </SelectTrigger>
-          <SelectContent>
-            {NODE_KINDS.map((kind) => (
-              <SelectItem key={kind} value={kind}>
-                {NODE_KIND_LABELS[kind]}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
+      ) : (
+        <div>
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            Add node
+          </p>
+          <Select onValueChange={(value) => onAddNode(value as NodeKind)}>
+            <SelectTrigger size="sm">
+              <span className="flex items-center gap-1.5 text-muted-foreground">
+                <Plus className="h-3.5 w-3.5" /> <SelectValue placeholder="Choose a kind…" />
+              </span>
+            </SelectTrigger>
+            <SelectContent>
+              {NODE_KINDS.map((kind) => (
+                <SelectItem key={kind} value={kind}>
+                  {NODE_KIND_LABELS[kind]}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
 
-      {selectedNodeIds.length >= 2 ? (
+      {!readOnly && selectedNodeIds.length >= 2 ? (
         <Button size="sm" variant="secondary" onClick={() => onGroup(selectedNodeIds)}>
           <Group className="h-3.5 w-3.5" /> Group {selectedNodeIds.length} nodes
         </Button>
@@ -203,6 +212,7 @@ export function PropertiesPanel({
           <label className="flex flex-col gap-1 text-xs">
             Label
             <Input
+              disabled={readOnly}
               value={selectedNode.label}
               onChange={(e) => onUpdateNode(selectedNode.id, { label: e.target.value })}
             />
@@ -211,6 +221,7 @@ export function PropertiesPanel({
           <label className="flex flex-col gap-1 text-xs">
             Kind
             <Select
+              disabled={readOnly}
               value={selectedNode.kind}
               onValueChange={(value) => onUpdateNode(selectedNode.id, { kind: value as NodeKind })}
             >
@@ -230,6 +241,7 @@ export function PropertiesPanel({
           <label className="flex flex-col gap-1 text-xs">
             Shape
             <Select
+              disabled={readOnly}
               value={selectedNode.shape ?? "rounded"}
               onValueChange={(value) => onUpdateNode(selectedNode.id, { shape: value as NodeShape })}
             >
@@ -249,6 +261,7 @@ export function PropertiesPanel({
           <label className="flex flex-col gap-1 text-xs">
             Border style
             <Select
+              disabled={readOnly}
               value={selectedNode.borderStyle ?? "solid"}
               onValueChange={(value) =>
                 onUpdateNode(selectedNode.id, { borderStyle: value as LineStyle })
@@ -267,33 +280,38 @@ export function PropertiesPanel({
             </Select>
           </label>
 
-          <label className="flex flex-col gap-1 text-xs">
-            Fill color
-            <FillColorPicker
-              value={selectedNode.fillColor ?? NODE_COLORS[selectedNode.kind]}
-              onCommit={(color) => onUpdateNode(selectedNode.id, { fillColor: color })}
-            />
-          </label>
+          {!readOnly ? (
+            <label className="flex flex-col gap-1 text-xs">
+              Fill color
+              <FillColorPicker
+                value={selectedNode.fillColor ?? NODE_COLORS[selectedNode.kind]}
+                onCommit={(color) => onUpdateNode(selectedNode.id, { fillColor: color })}
+              />
+            </label>
+          ) : null}
 
           <label className="flex flex-col gap-1 text-xs">
             Description
             <Textarea
+              disabled={readOnly}
               className="min-h-[60px]"
               value={selectedNode.description ?? ""}
               onChange={(e) => onUpdateNode(selectedNode.id, { description: e.target.value })}
             />
           </label>
 
-          <div className="flex gap-2">
-            {selectedNode.kind === "group" ? (
-              <Button size="sm" variant="secondary" onClick={() => onUngroup(selectedNode.id)}>
-                <Ungroup className="h-3.5 w-3.5" /> Ungroup
+          {!readOnly ? (
+            <div className="flex gap-2">
+              {selectedNode.kind === "group" ? (
+                <Button size="sm" variant="secondary" onClick={() => onUngroup(selectedNode.id)}>
+                  <Ungroup className="h-3.5 w-3.5" /> Ungroup
+                </Button>
+              ) : null}
+              <Button size="sm" variant="destructive" onClick={() => onDeleteNode(selectedNode.id)}>
+                <Trash2 className="h-3.5 w-3.5" /> Delete
               </Button>
-            ) : null}
-            <Button size="sm" variant="destructive" onClick={() => onDeleteNode(selectedNode.id)}>
-              <Trash2 className="h-3.5 w-3.5" /> Delete
-            </Button>
-          </div>
+            </div>
+          ) : null}
         </div>
       ) : null}
 
@@ -306,6 +324,7 @@ export function PropertiesPanel({
           <label className="flex flex-col gap-1 text-xs">
             Label
             <Input
+              disabled={readOnly}
               value={selectedEdge.label ?? ""}
               onChange={(e) => onUpdateEdge(selectedEdge.id, { label: e.target.value })}
             />
@@ -314,6 +333,7 @@ export function PropertiesPanel({
           <label className="flex flex-col gap-1 text-xs">
             Kind
             <Select
+              disabled={readOnly}
               value={selectedEdge.kind}
               onValueChange={(value) => onUpdateEdge(selectedEdge.id, { kind: value as EdgeKind })}
             >
@@ -333,6 +353,7 @@ export function PropertiesPanel({
           <label className="flex flex-col gap-1 text-xs">
             Arrow style
             <Select
+              disabled={readOnly}
               value={selectedEdge.arrowStyle ?? "forward"}
               onValueChange={(value) =>
                 onUpdateEdge(selectedEdge.id, { arrowStyle: value as ArrowStyle })
@@ -354,6 +375,7 @@ export function PropertiesPanel({
           <label className="flex flex-col gap-1 text-xs">
             Line style
             <Select
+              disabled={readOnly}
               value={selectedEdge.lineStyle ?? EDGE_STYLES[selectedEdge.kind].lineStyle}
               onValueChange={(value) =>
                 onUpdateEdge(selectedEdge.id, { lineStyle: value as LineStyle })
@@ -372,9 +394,11 @@ export function PropertiesPanel({
             </Select>
           </label>
 
-          <Button size="sm" variant="destructive" onClick={() => onDeleteEdge(selectedEdge.id)}>
-            <Trash2 className="h-3.5 w-3.5" /> Delete
-          </Button>
+          {!readOnly ? (
+            <Button size="sm" variant="destructive" onClick={() => onDeleteEdge(selectedEdge.id)}>
+              <Trash2 className="h-3.5 w-3.5" /> Delete
+            </Button>
+          ) : null}
         </div>
       ) : null}
 

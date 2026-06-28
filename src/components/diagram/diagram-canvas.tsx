@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   Background,
   BackgroundVariant,
@@ -20,14 +21,14 @@ import {
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import { toPng } from "html-to-image";
-import { ChevronRight, Download, Home } from "lucide-react";
+import { toast } from "sonner";
+import { ChevronRight, Download, GitFork, Home, Lock, Globe } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { CompositeNode, type CompositeNodeData } from "@/components/diagram/composite-node";
 import { PropertiesPanel } from "@/components/diagram/properties-panel";
-import { ProjectSwitcher } from "@/components/diagram/project-switcher";
-import { buildSeedDiagram } from "@/lib/diagram-seed";
+import { FolderPicker } from "@/components/library/folder-picker";
 import {
-  DEFAULT_DIAGRAM_NAME,
   EDGE_STYLES,
   NODE_COLORS,
   type DiagramDocument,
@@ -43,6 +44,15 @@ const GROUP_PADDING = 48;
 const CHILD_GRID_GAP = 24;
 const CHILD_GRID_SIDE_INSET = 24;
 const CHILD_GRID_TOP_INSET = 64;
+
+interface DiagramApiResponse extends DiagramDocument {
+  id: string;
+  name: string;
+  visibility: "public" | "private";
+  folderId: string | null;
+  isOwner: boolean;
+  ownerName: string;
+}
 
 /**
  * Arrange a node's direct children in a non-overlapping grid, inset from the
@@ -103,6 +113,7 @@ function diagramNodeToFlowNode(
   node: DiagramNodeData,
   hasChildren: boolean,
   scopeId: string | null,
+  readOnly: boolean,
   onToggleExpand: (id: string) => void,
   onDrillIn: (id: string) => void,
 ): Node<CompositeNodeData> {
@@ -114,6 +125,7 @@ function diagramNodeToFlowNode(
     position: node.position,
     parentId: flowParentId,
     extent: flowParentId ? "parent" : undefined,
+    draggable: !readOnly,
     style: { width: size.width, height: size.height },
     data: {
       label: node.label,
@@ -124,6 +136,7 @@ function diagramNodeToFlowNode(
       borderStyle: node.borderStyle ?? "solid",
       hasChildren,
       expanded: node.expanded,
+      readOnly,
       onToggleExpand,
       onDrillIn,
     },
@@ -186,25 +199,43 @@ function diagramEdgeToFlowEdge(edge: DiagramEdgeData): Edge {
   };
 }
 
+interface DiagramCanvasInnerProps {
+  diagramId: string;
+}
+
 /**
- * Client-side diagram canvas: loads the saved diagram (or a seed topology on
- * first run), renders it as an expandable/connectable/drillable React Flow
- * graph with a style-editing side panel, and persists changes on save.
+ * Client-side diagram canvas: loads the diagram by id, renders it as an
+ * expandable/connectable/drillable React Flow graph with a style-editing
+ * side panel, and persists changes on save. Read-only (with a fork action)
+ * when the viewer isn't the owner.
+ * @param props Contains the diagram's id.
  * @returns The rendered canvas.
  */
-function DiagramCanvasInner(): React.JSX.Element {
+function DiagramCanvasInner({ diagramId }: DiagramCanvasInnerProps): React.JSX.Element {
+  const router = useRouter();
   const diagramRef = useRef<DiagramDocument>({ nodes: [], edges: [] });
   const [nodes, setNodes, onNodesChange] = useNodesState<Node<CompositeNodeData>>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
   const [loading, setLoading] = useState(true);
+  const [notFound, setNotFound] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [diagramName, setDiagramName] = useState("");
+  const [visibility, setVisibility] = useState<"public" | "private">("private");
+  const [folderId, setFolderId] = useState<string | null>(null);
+  const [isOwner, setIsOwner] = useState(false);
+  const [forking, setForking] = useState(false);
   const [scopeStack, setScopeStack] = useState<{ id: string; label: string }[]>([]);
   const [selectedNode, setSelectedNode] = useState<DiagramNodeData | null>(null);
   const [selectedEdge, setSelectedEdge] = useState<DiagramEdgeData | null>(null);
   const [selectedNodeIds, setSelectedNodeIds] = useState<string[]>([]);
-  const [projectName, setProjectName] = useState(DEFAULT_DIAGRAM_NAME);
   const wrapperRef = useRef<HTMLDivElement>(null);
   const { fitView } = useReactFlow();
+
+  const readOnly = !isOwner;
+  const readOnlyRef = useRef(readOnly);
+  useEffect(() => {
+    readOnlyRef.current = readOnly;
+  }, [readOnly]);
 
   const scopeId = scopeStack.at(-1)?.id ?? null;
   const scopeIdRef = useRef<string | null>(null);
@@ -227,6 +258,7 @@ function DiagramCanvasInner(): React.JSX.Element {
             n,
             doc.nodes.some((c) => c.parentId === n.id),
             currentScopeId,
+            readOnlyRef.current,
             onToggleExpand,
             onDrillIn,
           ),
@@ -282,43 +314,49 @@ function DiagramCanvasInner(): React.JSX.Element {
     let cancelled = false;
     const load = async (): Promise<void> => {
       setLoading(true);
-      const res = await fetch(`/api/diagram?name=${encodeURIComponent(projectName)}`);
-      const saved = (await res.json()) as DiagramDocument | null;
-      const doc = saved ?? (projectName === DEFAULT_DIAGRAM_NAME ? buildSeedDiagram() : { nodes: [], edges: [] });
+      const res = await fetch(`/api/diagrams/${diagramId}`);
+      if (res.status === 404) {
+        if (!cancelled) {
+          setNotFound(true);
+          setLoading(false);
+        }
+        return;
+      }
+      const data = (await res.json()) as DiagramApiResponse;
       if (cancelled) return;
+
       // Re-flow any already-expanded node's children so stale/seeded
       // positions (sized for an older, smaller default card) never overlap.
-      let normalizedNodes = doc.nodes;
-      for (const n of doc.nodes) {
+      let normalizedNodes = data.nodes;
+      for (const n of data.nodes) {
         if (n.expanded) {
           normalizedNodes = expandWithLayout(normalizedNodes, n.id);
         }
       }
-      doc.nodes = normalizedNodes;
-      diagramRef.current = doc;
+      diagramRef.current = { nodes: normalizedNodes, edges: data.edges };
+      setDiagramName(data.name);
+      setVisibility(data.visibility);
+      setFolderId(data.folderId);
+      setIsOwner(data.isOwner);
+      readOnlyRef.current = !data.isOwner;
       setScopeStack([]);
       setSelectedNode(null);
       setSelectedEdge(null);
       setSelectedNodeIds([]);
-      rebuildFlow(doc, null, onToggleExpand, onDrillIn);
+      rebuildFlow(diagramRef.current, null, onToggleExpand, onDrillIn);
       setLoading(false);
-      if (!saved) {
-        void fetch(`/api/diagram?name=${encodeURIComponent(projectName)}`, {
-          method: "PUT",
-          body: JSON.stringify(doc),
-        });
-      }
     };
     void load();
     return (): void => {
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [projectName]);
+  }, [diagramId]);
 
   const handleNodesChange = useCallback(
     (changes: NodeChange<Node<CompositeNodeData>>[]) => {
       onNodesChange(changes);
+      if (readOnlyRef.current) return;
       for (const change of changes) {
         if (change.type === "position" && change.position) {
           diagramRef.current = {
@@ -347,7 +385,7 @@ function DiagramCanvasInner(): React.JSX.Element {
 
   const onConnect = useCallback(
     (connection: Connection) => {
-      if (!connection.source || !connection.target) return;
+      if (readOnlyRef.current || !connection.source || !connection.target) return;
       const id = `e-${connection.source}-${connection.target}-${Date.now()}`;
       const newEdge: DiagramEdgeData = {
         id,
@@ -372,6 +410,7 @@ function DiagramCanvasInner(): React.JSX.Element {
 
   const onUpdateNode = useCallback(
     (id: string, patch: Partial<DiagramNodeData>) => {
+      if (readOnlyRef.current) return;
       diagramRef.current = {
         ...diagramRef.current,
         nodes: diagramRef.current.nodes.map((n) => (n.id === id ? { ...n, ...patch } : n)),
@@ -384,6 +423,7 @@ function DiagramCanvasInner(): React.JSX.Element {
 
   const onUpdateEdge = useCallback(
     (id: string, patch: Partial<DiagramEdgeData>) => {
+      if (readOnlyRef.current) return;
       diagramRef.current = {
         ...diagramRef.current,
         edges: diagramRef.current.edges.map((e) => (e.id === id ? { ...e, ...patch } : e)),
@@ -396,6 +436,7 @@ function DiagramCanvasInner(): React.JSX.Element {
 
   const onDeleteNode = useCallback(
     (id: string) => {
+      if (readOnlyRef.current) return;
       const toRemove = new Set([id, ...descendantIds(diagramRef.current.nodes, id)]);
       diagramRef.current = {
         nodes: diagramRef.current.nodes.filter((n) => !toRemove.has(n.id)),
@@ -410,6 +451,7 @@ function DiagramCanvasInner(): React.JSX.Element {
 
   const onDeleteEdge = useCallback(
     (id: string) => {
+      if (readOnlyRef.current) return;
       diagramRef.current = {
         ...diagramRef.current,
         edges: diagramRef.current.edges.filter((e) => e.id !== id),
@@ -422,6 +464,7 @@ function DiagramCanvasInner(): React.JSX.Element {
 
   const onGroup = useCallback(
     (ids: string[]) => {
+      if (readOnlyRef.current) return;
       const all = diagramRef.current.nodes;
       const members = all.filter((n) => ids.includes(n.id));
       if (members.length < 2) return;
@@ -461,6 +504,7 @@ function DiagramCanvasInner(): React.JSX.Element {
 
   const onUngroup = useCallback(
     (groupId: string) => {
+      if (readOnlyRef.current) return;
       const all = diagramRef.current.nodes;
       const group = all.find((n) => n.id === groupId);
       if (!group) return;
@@ -486,6 +530,7 @@ function DiagramCanvasInner(): React.JSX.Element {
 
   const onAddNode = useCallback(
     (kind: NodeKind) => {
+      if (readOnlyRef.current) return;
       const id = `node-${Date.now()}`;
       const newNode: DiagramNodeData = {
         id,
@@ -506,15 +551,65 @@ function DiagramCanvasInner(): React.JSX.Element {
   const handleSave = useCallback(async () => {
     setSaving(true);
     try {
-      await fetch(`/api/diagram?name=${encodeURIComponent(projectName)}`, {
+      const res = await fetch(`/api/diagrams/${diagramId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(diagramRef.current),
       });
+      if (res.ok) {
+        toast.success("Diagram saved");
+      } else {
+        toast.error("Couldn't save diagram");
+      }
     } finally {
       setSaving(false);
     }
-  }, [projectName]);
+  }, [diagramId]);
+
+  const handleRename = useCallback(
+    async (name: string) => {
+      setDiagramName(name);
+      await fetch(`/api/diagrams/${diagramId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name }),
+      });
+    },
+    [diagramId],
+  );
+
+  const handleToggleVisibility = useCallback(async () => {
+    const next = visibility === "public" ? "private" : "public";
+    setVisibility(next);
+    await fetch(`/api/diagrams/${diagramId}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ visibility: next }),
+    });
+  }, [diagramId, visibility]);
+
+  const handleChangeFolder = useCallback(
+    async (nextFolderId: string | null) => {
+      setFolderId(nextFolderId);
+      await fetch(`/api/diagrams/${diagramId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ folderId: nextFolderId }),
+      });
+    },
+    [diagramId],
+  );
+
+  const handleFork = useCallback(async () => {
+    setForking(true);
+    try {
+      const res = await fetch(`/api/diagrams/${diagramId}/fork`, { method: "POST" });
+      const data = (await res.json()) as { id: string };
+      router.push(`/dashboard/diagram/${data.id}`);
+    } finally {
+      setForking(false);
+    }
+  }, [diagramId, router]);
 
   const handleExportPng = useCallback(async () => {
     const viewportEl = wrapperRef.current?.querySelector<HTMLElement>(".react-flow__viewport");
@@ -527,12 +622,20 @@ function DiagramCanvasInner(): React.JSX.Element {
     // Next.js's optimized font files in dev mode.
     const dataUrl = await toPng(viewportEl, { backgroundColor: "#1f2121", pixelRatio: 2, skipFonts: true });
     const link = document.createElement("a");
-    link.download = `${projectName}.png`;
+    link.download = `${diagramName}.png`;
     link.href = dataUrl;
     link.click();
-  }, [fitView, projectName]);
+  }, [fitView, diagramName]);
 
   const proOptions = useMemo(() => ({ hideAttribution: true }), []);
+
+  if (notFound) {
+    return (
+      <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
+        This diagram doesn&apos;t exist or isn&apos;t public.
+      </div>
+    );
+  }
 
   if (loading) {
     return (
@@ -547,8 +650,28 @@ function DiagramCanvasInner(): React.JSX.Element {
       <div ref={wrapperRef} className="relative min-w-0 flex-1">
         <div className="pointer-events-none absolute inset-x-3 top-3 z-10 flex flex-wrap items-start justify-between gap-2">
           <div className="pointer-events-auto flex flex-wrap items-center gap-2">
-            <div className="rounded-lg border bg-sidebar/95 px-2 py-1.5 shadow-sm backdrop-blur-sm">
-              <ProjectSwitcher currentProject={projectName} onSwitch={setProjectName} />
+            <div className="flex items-center gap-1.5 rounded-lg border bg-sidebar/95 px-2 py-1.5 shadow-sm backdrop-blur-sm">
+              {isOwner ? (
+                <Input
+                  value={diagramName}
+                  onChange={(e) => void handleRename(e.target.value)}
+                  className="h-7 w-40 border-none bg-transparent px-1 text-sm font-medium shadow-none"
+                />
+              ) : (
+                <span className="px-1 text-sm font-medium">{diagramName}</span>
+              )}
+              {isOwner ? (
+                <button
+                  type="button"
+                  title={visibility === "public" ? "Public — anyone can view" : "Private — only you can view"}
+                  onClick={() => void handleToggleVisibility()}
+                  className="flex items-center gap-1 rounded px-1.5 py-0.5 text-xs text-muted-foreground hover:bg-accent hover:text-foreground"
+                >
+                  {visibility === "public" ? <Globe className="h-3.5 w-3.5" /> : <Lock className="h-3.5 w-3.5" />}
+                  {visibility === "public" ? "Public" : "Private"}
+                </button>
+              ) : null}
+              {isOwner ? <FolderPicker value={folderId} onChange={(id) => void handleChangeFolder(id)} /> : null}
             </div>
             <div className="flex items-center gap-1 rounded-lg border bg-sidebar/95 px-2 py-1.5 text-sm shadow-sm backdrop-blur-sm">
               <button
@@ -580,9 +703,15 @@ function DiagramCanvasInner(): React.JSX.Element {
             <Button size="sm" variant="outline" onClick={() => void handleExportPng()}>
               <Download className="h-3.5 w-3.5" /> <span className="hidden sm:inline">Export PNG</span>
             </Button>
-            <Button size="sm" onClick={() => void handleSave()} disabled={saving}>
-              {saving ? "Saving…" : "Save"}
-            </Button>
+            {isOwner ? (
+              <Button size="sm" onClick={() => void handleSave()} disabled={saving}>
+                {saving ? "Saving…" : "Save"}
+              </Button>
+            ) : (
+              <Button size="sm" onClick={() => void handleFork()} disabled={forking}>
+                <GitFork className="h-3.5 w-3.5" /> {forking ? "Forking…" : "Fork to edit"}
+              </Button>
+            )}
           </div>
         </div>
         <ReactFlow
@@ -593,6 +722,8 @@ function DiagramCanvasInner(): React.JSX.Element {
           onConnect={onConnect}
           onSelectionChange={onSelectionChange}
           nodeTypes={NODE_TYPES}
+          nodesDraggable={!readOnly}
+          nodesConnectable={!readOnly}
           connectionMode={ConnectionMode.Loose}
           proOptions={proOptions}
           defaultEdgeOptions={{ type: "smoothstep" }}
@@ -607,6 +738,7 @@ function DiagramCanvasInner(): React.JSX.Element {
         </ReactFlow>
       </div>
       <PropertiesPanel
+        readOnly={readOnly}
         selectedNode={selectedNode}
         selectedEdge={selectedEdge}
         selectedNodeIds={selectedNodeIds}
@@ -622,15 +754,20 @@ function DiagramCanvasInner(): React.JSX.Element {
   );
 }
 
+interface DiagramCanvasProps {
+  diagramId: string;
+}
+
 /**
  * Wraps the canvas in a ReactFlowProvider so internal hooks (zoom, viewport)
  * work outside of a parent-provided flow context.
+ * @param props Contains the diagram's id.
  * @returns The provider-wrapped canvas.
  */
-export function DiagramCanvas(): React.JSX.Element {
+export function DiagramCanvas({ diagramId }: DiagramCanvasProps): React.JSX.Element {
   return (
     <ReactFlowProvider>
-      <DiagramCanvasInner />
+      <DiagramCanvasInner diagramId={diagramId} />
     </ReactFlowProvider>
   );
 }

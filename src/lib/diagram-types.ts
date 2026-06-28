@@ -1,5 +1,3 @@
-export const DEFAULT_DIAGRAM_NAME = "k3s-platform";
-
 export type NodeKind =
   | "physical"
   | "vm"

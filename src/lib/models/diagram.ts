@@ -42,12 +42,21 @@ const diagramEdgeSchema = new mongoose.Schema(
 
 const diagramSchema = new mongoose.Schema(
   {
-    name: { type: String, required: true, unique: true },
+    name: { type: String, required: true, trim: true },
+    ownerId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
+    visibility: { type: String, enum: ["public", "private"], default: "private" },
+    folderId: { type: mongoose.Schema.Types.ObjectId, ref: "Folder", default: null },
+    forkedFrom: { type: mongoose.Schema.Types.ObjectId, ref: "Diagram", default: null },
+    lastOpenedAt: { type: Date, default: Date.now },
     nodes: { type: [diagramNodeSchema], default: [] },
     edges: { type: [diagramEdgeSchema], default: [] },
   },
   { timestamps: true },
 );
+
+diagramSchema.index({ ownerId: 1, name: 1 }, { unique: true });
+diagramSchema.index({ visibility: 1, updatedAt: -1 });
+diagramSchema.index({ name: "text" });
 
 export type DiagramDoc = InferSchemaType<typeof diagramSchema> & {
   _id: mongoose.Types.ObjectId;

@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
 import { connectToDatabase } from "@/lib/db";
-import { Diagram } from "@/lib/models/diagram";
+import { FlashcardSet } from "@/lib/models/flashcard-set";
 import { requireUserId } from "@/lib/require-user";
 
 /**
- * List the current user's diagrams, most recently opened first.
+ * List the current user's flashcard sets, most recently opened first.
  */
 export async function GET(): Promise<NextResponse> {
   const userId = await requireUserId();
@@ -13,17 +13,27 @@ export async function GET(): Promise<NextResponse> {
   }
 
   await connectToDatabase();
-  const diagrams = await Diagram.find(
+  const sets = await FlashcardSet.find(
     { ownerId: userId },
-    { name: 1, visibility: 1, updatedAt: 1, lastOpenedAt: 1, folderId: 1 },
+    { name: 1, description: 1, visibility: 1, updatedAt: 1, lastOpenedAt: 1, folderId: 1, cards: 1 },
   )
     .sort({ lastOpenedAt: -1 })
     .lean();
-  return NextResponse.json(diagrams);
+  return NextResponse.json(
+    sets.map((s) => ({
+      id: s._id.toString(),
+      name: s.name,
+      description: s.description,
+      visibility: s.visibility,
+      updatedAt: s.updatedAt,
+      folderId: s.folderId,
+      cardCount: s.cards.length,
+    })),
+  );
 }
 
 /**
- * Create a new, empty diagram owned by the current user.
+ * Create a new flashcard set owned by the current user.
  */
 export async function POST(request: Request): Promise<NextResponse> {
   const userId = await requireUserId();
@@ -31,8 +41,9 @@ export async function POST(request: Request): Promise<NextResponse> {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { name, visibility, folderId } = (await request.json()) as {
+  const { name, description, visibility, folderId } = (await request.json()) as {
     name?: string;
+    description?: string;
     visibility?: "public" | "private";
     folderId?: string | null;
   };
@@ -41,17 +52,13 @@ export async function POST(request: Request): Promise<NextResponse> {
   }
 
   await connectToDatabase();
-  const existing = await Diagram.findOne({ ownerId: userId, name: name.trim() }).lean();
-  if (existing) {
-    return NextResponse.json({ error: "You already have a diagram with that name" }, { status: 409 });
-  }
-  const diagram = await Diagram.create({
+  const set = await FlashcardSet.create({
     name: name.trim(),
+    description,
     ownerId: userId,
     visibility: visibility ?? "private",
     folderId: folderId ?? null,
-    nodes: [],
-    edges: [],
+    cards: [],
   });
-  return NextResponse.json({ id: diagram._id.toString() });
+  return NextResponse.json({ id: set._id.toString() });
 }

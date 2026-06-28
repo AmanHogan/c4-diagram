@@ -15,6 +15,8 @@ const userSchema = new mongoose.Schema(
   { timestamps: true },
 );
 
+userSchema.index({ name: "text", email: "text" });
+
 export type UserDoc = InferSchemaType<typeof userSchema> & {
   _id: mongoose.Types.ObjectId;
 };
