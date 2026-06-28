@@ -41,8 +41,8 @@ type Tab = "diagrams" | "flashcards" | "users";
 
 function VisibilityTag({ visibility }: { visibility: "public" | "private" }): React.JSX.Element {
   return (
-    <span className="flex items-center gap-1 text-xs text-muted-foreground">
-      {visibility === "public" ? <Globe className="h-3 w-3" /> : <Lock className="h-3 w-3" />}
+    <span className="flex items-center gap-1.5 text-sm text-muted-foreground">
+      {visibility === "public" ? <Globe className="h-4 w-4" /> : <Lock className="h-4 w-4" />}
       {visibility === "public" ? "Public" : "Private"}
     </span>
   );
@@ -81,7 +81,7 @@ export default function SearchPage(): React.JSX.Element {
 
   return (
     <div className="mx-auto max-w-3xl">
-      <h1 className="mb-4 text-2xl font-semibold">
+      <h1 className="mb-4 text-3xl font-bold">
         Results for <span className="text-muted-foreground">&quot;{q}&quot;</span>
       </h1>
 
@@ -98,7 +98,7 @@ export default function SearchPage(): React.JSX.Element {
             type="button"
             onClick={() => setTab(key)}
             className={cn(
-              "border-b-2 px-3 py-2 text-sm font-medium transition-colors",
+              "border-b-2 px-4 py-2.5 text-base font-medium transition-colors",
               tab === key
                 ? "border-primary text-foreground"
                 : "border-transparent text-muted-foreground hover:text-foreground",
@@ -110,26 +110,26 @@ export default function SearchPage(): React.JSX.Element {
       </div>
 
       {!q ? (
-        <p className="text-sm text-muted-foreground">Type something in the search bar to get started.</p>
+        <p className="text-base text-muted-foreground">Type something in the search bar to get started.</p>
       ) : !results ? (
-        <p className="text-sm text-muted-foreground">Searching…</p>
+        <p className="text-base text-muted-foreground">Searching…</p>
       ) : (
         <>
           {tab === "diagrams" ? (
             results.diagrams.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No diagrams found.</p>
+              <p className="text-base text-muted-foreground">No diagrams found.</p>
             ) : (
-              <ul className="flex flex-col gap-2">
+              <ul className="flex flex-col gap-3">
                 {results.diagrams.map((d) => (
                   <li key={d.id}>
                     <Link
                       href={`/dashboard/diagram/${d.id}`}
-                      className="flex items-center gap-3 rounded-lg border bg-card px-4 py-3 hover:border-primary"
+                      className="flex items-center gap-4 rounded-xl border-2 border-border/60 bg-card px-5 py-4 hover:border-primary"
                     >
-                      <Network className="h-4 w-4 shrink-0 text-muted-foreground" />
+                      <Network className="h-5 w-5 shrink-0 text-muted-foreground" />
                       <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-medium">{d.name}</p>
-                        <p className="truncate text-xs text-muted-foreground">
+                        <p className="truncate text-base font-semibold">{d.name}</p>
+                        <p className="truncate text-sm text-muted-foreground">
                           {d.isOwner ? "You" : d.ownerName}
                         </p>
                       </div>
@@ -143,19 +143,19 @@ export default function SearchPage(): React.JSX.Element {
 
           {tab === "flashcards" ? (
             results.flashcardSets.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No flashcard sets found.</p>
+              <p className="text-base text-muted-foreground">No flashcard sets found.</p>
             ) : (
-              <ul className="flex flex-col gap-2">
+              <ul className="flex flex-col gap-3">
                 {results.flashcardSets.map((s) => (
                   <li key={s.id}>
                     <Link
                       href={`/dashboard/flashcards/${s.id}`}
-                      className="flex items-center gap-3 rounded-lg border bg-card px-4 py-3 hover:border-primary"
+                      className="flex items-center gap-4 rounded-xl border-2 border-border/60 bg-card px-5 py-4 hover:border-primary"
                     >
-                      <Layers className="h-4 w-4 shrink-0 text-muted-foreground" />
+                      <Layers className="h-5 w-5 shrink-0 text-muted-foreground" />
                       <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-medium">{s.name}</p>
-                        <p className="truncate text-xs text-muted-foreground">
+                        <p className="truncate text-base font-semibold">{s.name}</p>
+                        <p className="truncate text-sm text-muted-foreground">
                           {s.isOwner ? "You" : s.ownerName} · {s.cardCount} cards
                         </p>
                       </div>
@@ -169,17 +169,17 @@ export default function SearchPage(): React.JSX.Element {
 
           {tab === "users" ? (
             results.users.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No users found.</p>
+              <p className="text-base text-muted-foreground">No users found.</p>
             ) : (
-              <ul className="flex flex-col gap-2">
+              <ul className="flex flex-col gap-3">
                 {results.users.map((u) => (
                   <li key={u.id}>
                     <Link
                       href={`/dashboard/users/${u.id}`}
-                      className="flex items-center gap-3 rounded-lg border bg-card px-4 py-3 hover:border-primary"
+                      className="flex items-center gap-4 rounded-xl border-2 border-border/60 bg-card px-5 py-4 hover:border-primary"
                     >
-                      <UserIcon className="h-4 w-4 shrink-0 text-muted-foreground" />
-                      <span className="text-sm font-medium">{u.name}</span>
+                      <UserIcon className="h-5 w-5 shrink-0 text-muted-foreground" />
+                      <span className="text-base font-semibold">{u.name}</span>
                     </Link>
                   </li>
                 ))}

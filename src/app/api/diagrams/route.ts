@@ -19,7 +19,15 @@ export async function GET(): Promise<NextResponse> {
   )
     .sort({ lastOpenedAt: -1 })
     .lean();
-  return NextResponse.json(diagrams);
+  return NextResponse.json(
+    diagrams.map((d) => ({
+      id: d._id.toString(),
+      name: d.name,
+      visibility: d.visibility,
+      updatedAt: d.updatedAt,
+      folderId: d.folderId,
+    })),
+  );
 }
 
 /**

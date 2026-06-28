@@ -13,7 +13,7 @@ interface DiagramPageProps {
 export default async function DiagramPage({ params }: DiagramPageProps): Promise<React.JSX.Element> {
   const { id } = await params;
   return (
-    <div className="h-[calc(100vh-3.5rem-3rem)] w-full">
+    <div className="h-[calc(100vh-4rem-3rem)] w-full">
       <DiagramCanvas diagramId={id} />
     </div>
   );

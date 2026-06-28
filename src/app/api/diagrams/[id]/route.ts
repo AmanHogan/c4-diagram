@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { connectToDatabase } from "@/lib/db";
 import { Diagram } from "@/lib/models/diagram";
+import { User } from "@/lib/models/user";
 import { requireUserId } from "@/lib/require-user";
 import type { DiagramDocument } from "@/lib/diagram-types";
 
@@ -20,12 +21,11 @@ export async function GET(_request: Request, { params }: RouteParams): Promise<N
 
   const { id } = await params;
   await connectToDatabase();
-  const diagram = await Diagram.findById(id).populate("ownerId", "name").lean();
+  const diagram = await Diagram.findById(id).lean();
   if (!diagram) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
-  const owner = diagram.ownerId as unknown as { _id: { toString(): string }; name: string };
-  const isOwner = owner._id.toString() === userId;
+  const isOwner = diagram.ownerId.toString() === userId;
   if (!isOwner && diagram.visibility !== "public") {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
@@ -33,6 +33,8 @@ export async function GET(_request: Request, { params }: RouteParams): Promise<N
   if (isOwner) {
     await Diagram.updateOne({ _id: id }, { lastOpenedAt: new Date() });
   }
+
+  const owner = await User.findById(diagram.ownerId, { name: 1 }).lean();
 
   return NextResponse.json({
     id: diagram._id.toString(),
@@ -42,7 +44,7 @@ export async function GET(_request: Request, { params }: RouteParams): Promise<N
     nodes: diagram.nodes,
     edges: diagram.edges,
     isOwner,
-    ownerName: owner.name,
+    ownerName: owner?.name ?? "Unknown user",
   });
 }
 

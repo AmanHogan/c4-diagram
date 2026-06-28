@@ -650,12 +650,12 @@ function DiagramCanvasInner({ diagramId }: DiagramCanvasInnerProps): React.JSX.E
       <div ref={wrapperRef} className="relative min-w-0 flex-1">
         <div className="pointer-events-none absolute inset-x-3 top-3 z-10 flex flex-wrap items-start justify-between gap-2">
           <div className="pointer-events-auto flex flex-wrap items-center gap-2">
-            <div className="flex items-center gap-1.5 rounded-lg border bg-sidebar/95 px-2 py-1.5 shadow-sm backdrop-blur-sm">
+            <div className="flex flex-wrap items-center gap-1.5 rounded-lg border bg-sidebar/95 px-2 py-1.5 shadow-sm backdrop-blur-sm">
               {isOwner ? (
                 <Input
                   value={diagramName}
                   onChange={(e) => void handleRename(e.target.value)}
-                  className="h-7 w-40 border-none bg-transparent px-1 text-sm font-medium shadow-none"
+                  className="h-7 w-28 border-none bg-transparent px-1 text-sm font-medium shadow-none sm:w-40"
                 />
               ) : (
                 <span className="px-1 text-sm font-medium">{diagramName}</span>

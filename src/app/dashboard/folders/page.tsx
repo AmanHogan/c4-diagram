@@ -49,13 +49,13 @@ export default function FoldersPage(): React.JSX.Element {
 
   return (
     <div className="mx-auto max-w-3xl">
-      <div className="mb-6 flex items-center justify-between">
+      <div className="mb-6 flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold">Folders</h1>
-          <p className="text-sm text-muted-foreground">Group diagrams and flashcard sets together.</p>
+          <h1 className="text-3xl font-bold">Folders</h1>
+          <p className="text-base text-muted-foreground">Group diagrams and flashcard sets together.</p>
         </div>
         {creating ? (
-          <div className="flex items-center gap-1.5">
+          <div className="flex flex-wrap items-center gap-2">
             <Input
               autoFocus
               placeholder="Name"
@@ -65,36 +65,36 @@ export default function FoldersPage(): React.JSX.Element {
                 if (e.key === "Enter") void handleCreate();
                 if (e.key === "Escape") setCreating(false);
               }}
-              className="h-8 w-44"
+              className="h-10 w-52 text-base"
             />
-            <Button size="sm" onClick={() => void handleCreate()}>
+            <Button size="lg" onClick={() => void handleCreate()} className="text-base">
               Create
             </Button>
-            <Button size="sm" variant="ghost" onClick={() => setCreating(false)}>
+            <Button size="lg" variant="ghost" onClick={() => setCreating(false)} className="text-base">
               Cancel
             </Button>
           </div>
         ) : (
-          <Button size="sm" onClick={() => setCreating(true)}>
-            <Plus className="h-3.5 w-3.5" /> New
+          <Button size="lg" onClick={() => setCreating(true)} className="text-base">
+            <Plus className="h-5 w-5" /> New
           </Button>
         )}
       </div>
 
       {!folders ? (
-        <p className="text-sm text-muted-foreground">Loading…</p>
+        <p className="text-base text-muted-foreground">Loading…</p>
       ) : folders.length === 0 ? (
-        <p className="text-sm text-muted-foreground">No folders yet — create one to get started.</p>
+        <p className="text-base text-muted-foreground">No folders yet — create one to get started.</p>
       ) : (
-        <ul className="flex flex-col gap-2">
+        <ul className="flex flex-col gap-3">
           {folders.map((folder) => (
             <li key={folder.id}>
               <Link
                 href={`/dashboard/folders/${folder.id}`}
-                className="flex items-center gap-3 rounded-lg border bg-card px-4 py-3 hover:border-primary"
+                className="flex items-center gap-4 rounded-xl border-2 border-border/60 bg-card px-5 py-4 transition-colors hover:border-primary"
               >
-                <FolderClosed className="h-4 w-4 text-muted-foreground" />
-                <span className="text-sm font-medium">{folder.name}</span>
+                <FolderClosed className="h-5 w-5 text-muted-foreground" />
+                <span className="text-base font-semibold">{folder.name}</span>
               </Link>
             </li>
           ))}

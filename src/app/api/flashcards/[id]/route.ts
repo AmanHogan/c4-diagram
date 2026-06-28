@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { connectToDatabase } from "@/lib/db";
 import { FlashcardSet } from "@/lib/models/flashcard-set";
+import { User } from "@/lib/models/user";
 import { requireUserId } from "@/lib/require-user";
 
 interface RouteParams {
@@ -25,13 +26,12 @@ export async function GET(_request: Request, { params }: RouteParams): Promise<N
 
   const { id } = await params;
   await connectToDatabase();
-  const set = await FlashcardSet.findById(id).populate("ownerId", "name").lean();
-  if (!set) {
+  const raw = await FlashcardSet.findById(id).lean();
+  if (!raw) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
-  const owner = set.ownerId as unknown as { _id: { toString(): string }; name: string };
-  const isOwner = owner._id.toString() === userId;
-  if (!isOwner && set.visibility !== "public") {
+  const isOwner = raw.ownerId.toString() === userId;
+  if (!isOwner && raw.visibility !== "public") {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
@@ -39,15 +39,17 @@ export async function GET(_request: Request, { params }: RouteParams): Promise<N
     await FlashcardSet.updateOne({ _id: id }, { lastOpenedAt: new Date() });
   }
 
+  const owner = await User.findById(raw.ownerId, { name: 1 }).lean();
+
   return NextResponse.json({
-    id: set._id.toString(),
-    name: set.name,
-    description: set.description,
-    visibility: set.visibility,
-    folderId: set.folderId,
-    cards: set.cards,
+    id: raw._id.toString(),
+    name: raw.name,
+    description: raw.description,
+    visibility: raw.visibility,
+    folderId: raw.folderId,
+    cards: raw.cards,
     isOwner,
-    ownerName: owner.name,
+    ownerName: owner?.name ?? "Unknown user",
   });
 }
 

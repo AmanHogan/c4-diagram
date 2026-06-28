@@ -26,14 +26,14 @@ function ItemCard({ item, showOwner }: { item: DashboardItem; showOwner: boolean
   return (
     <Link
       href={itemHref(item)}
-      className="flex items-center gap-3 rounded-xl border bg-card p-4 transition-all hover:-translate-y-0.5 hover:border-primary hover:shadow-md"
+      className="flex items-center gap-4 rounded-xl border-2 border-border/60 bg-card p-5 transition-all hover:-translate-y-0.5 hover:border-primary hover:shadow-lg"
     >
-      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
-        <Icon className="h-4 w-4" />
+      <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+        <Icon className="h-5 w-5" />
       </span>
       <div className="min-w-0">
-        <p className="truncate text-sm font-medium">{item.name}</p>
-        <p className="truncate text-xs text-muted-foreground">
+        <p className="truncate text-base font-semibold">{item.name}</p>
+        <p className="truncate text-sm text-muted-foreground">
           {showOwner && item.ownerName ? `by ${item.ownerName} · ` : ""}
           {new Date(item.updatedAt).toLocaleDateString()}
         </p>
@@ -70,22 +70,22 @@ export default function DashboardHome(): React.JSX.Element {
 
   return (
     <div className="mx-auto max-w-4xl">
-      <h1 className="mb-1 text-2xl font-semibold">Dashboard</h1>
-      <p className="mb-8 text-sm text-muted-foreground">
+      <h1 className="mb-1 text-3xl font-bold">Dashboard</h1>
+      <p className="mb-8 text-base text-muted-foreground">
         Pick up where you left off, or see what other learners are studying.
       </p>
 
-      <section className="mb-6 rounded-2xl border-2 border-sidebar-border bg-sidebar/60 p-5">
-        <div className="mb-4 flex items-center gap-2">
-          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-500/15 text-blue-400">
-            <Compass className="h-4 w-4" />
+      <section className="mb-6 rounded-2xl border-2 border-sidebar-border bg-sidebar/60 p-6">
+        <div className="mb-5 flex items-center gap-3">
+          <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-500/15 text-blue-400">
+            <Compass className="h-5 w-5" />
           </span>
-          <h2 className="text-lg font-bold tracking-tight">Jump back in</h2>
+          <h2 className="text-xl font-bold tracking-tight">Jump back in</h2>
         </div>
         {!recent ? (
-          <p className="text-sm text-muted-foreground">Loading…</p>
+          <p className="text-base text-muted-foreground">Loading…</p>
         ) : recent.length === 0 ? (
-          <p className="text-sm text-muted-foreground">
+          <p className="text-base text-muted-foreground">
             Nothing yet — create a diagram or flashcard set to get started.
           </p>
         ) : (
@@ -97,17 +97,17 @@ export default function DashboardHome(): React.JSX.Element {
         )}
       </section>
 
-      <section className="rounded-2xl border-2 border-sidebar-border bg-sidebar/60 p-5">
-        <div className="mb-4 flex items-center gap-2">
-          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-500/15 text-amber-400">
-            <Sparkles className="h-4 w-4" />
+      <section className="rounded-2xl border-2 border-sidebar-border bg-sidebar/60 p-6">
+        <div className="mb-5 flex items-center gap-3">
+          <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-500/15 text-amber-400">
+            <Sparkles className="h-5 w-5" />
           </span>
-          <h2 className="text-base font-semibold text-foreground/90">Popular with other learners</h2>
+          <h2 className="text-xl font-bold tracking-tight">Popular with other learners</h2>
         </div>
         {!popular ? (
-          <p className="text-sm text-muted-foreground">Loading…</p>
+          <p className="text-base text-muted-foreground">Loading…</p>
         ) : popular.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No public sets or diagrams yet.</p>
+          <p className="text-base text-muted-foreground">No public sets or diagrams yet.</p>
         ) : (
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             {popular.map((item) => (

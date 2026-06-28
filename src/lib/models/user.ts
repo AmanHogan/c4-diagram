@@ -11,6 +11,11 @@ const userSchema = new mongoose.Schema(
       trim: true,
     },
     passwordHash: { type: String, required: true },
+    theme: {
+      accent: { type: String },
+      background: { type: String },
+      card: { type: String },
+    },
   },
   { timestamps: true },
 );

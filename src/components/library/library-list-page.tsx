@@ -78,13 +78,13 @@ export function LibraryListPage({
 
   return (
     <div className="mx-auto max-w-3xl">
-      <div className="mb-6 flex items-center justify-between">
+      <div className="mb-6 flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold">{title}</h1>
-          <p className="text-sm text-muted-foreground">{description}</p>
+          <h1 className="text-3xl font-bold">{title}</h1>
+          <p className="text-base text-muted-foreground">{description}</p>
         </div>
         {creating ? (
-          <div className="flex items-center gap-1.5">
+          <div className="flex flex-wrap items-center gap-2">
             <Input
               autoFocus
               placeholder="Name"
@@ -94,48 +94,48 @@ export function LibraryListPage({
                 if (e.key === "Enter") void handleCreate();
                 if (e.key === "Escape") setCreating(false);
               }}
-              className="h-8 w-44"
+              className="h-10 w-52 text-base"
             />
-            <Button size="sm" onClick={() => void handleCreate()}>
+            <Button size="lg" onClick={() => void handleCreate()} className="text-base">
               Create
             </Button>
-            <Button size="sm" variant="ghost" onClick={() => setCreating(false)}>
+            <Button size="lg" variant="ghost" onClick={() => setCreating(false)} className="text-base">
               Cancel
             </Button>
           </div>
         ) : (
-          <Button size="sm" onClick={() => setCreating(true)}>
-            <Plus className="h-3.5 w-3.5" /> New
+          <Button size="lg" onClick={() => setCreating(true)} className="text-base">
+            <Plus className="h-5 w-5" /> New
           </Button>
         )}
       </div>
 
-      {error ? <p className="mb-4 text-sm text-destructive">{error}</p> : null}
+      {error ? <p className="mb-4 text-base text-destructive">{error}</p> : null}
 
       {!items ? (
-        <p className="text-sm text-muted-foreground">Loading…</p>
+        <p className="text-base text-muted-foreground">Loading…</p>
       ) : items.length === 0 ? (
-        <p className="text-sm text-muted-foreground">{emptyLabel}</p>
+        <p className="text-base text-muted-foreground">{emptyLabel}</p>
       ) : (
-        <ul className="flex flex-col gap-2">
+        <ul className="flex flex-col gap-3">
           {items.map((item) => (
             <li key={item.id}>
               <Link
                 href={detailHref(item.id)}
-                className="flex items-center justify-between gap-3 rounded-lg border bg-card px-4 py-3 transition-colors hover:border-primary"
+                className="flex items-center justify-between gap-4 rounded-xl border-2 border-border/60 bg-card px-5 py-4 transition-colors hover:border-primary"
               >
                 <div className="min-w-0">
-                  <p className="truncate text-sm font-medium">{item.name}</p>
-                  <p className="text-xs text-muted-foreground">
+                  <p className="truncate text-base font-semibold">{item.name}</p>
+                  <p className="text-sm text-muted-foreground">
                     {item.cardCount !== undefined ? `${item.cardCount} cards · ` : ""}
                     Updated {new Date(item.updatedAt).toLocaleDateString()}
                   </p>
                 </div>
-                <span className="flex shrink-0 items-center gap-1 text-xs text-muted-foreground">
+                <span className="flex shrink-0 items-center gap-1.5 text-sm text-muted-foreground">
                   {item.visibility === "public" ? (
-                    <Globe className="h-3.5 w-3.5" />
+                    <Globe className="h-4 w-4" />
                   ) : (
-                    <Lock className="h-3.5 w-3.5" />
+                    <Lock className="h-4 w-4" />
                   )}
                   {item.visibility === "public" ? "Public" : "Private"}
                 </span>

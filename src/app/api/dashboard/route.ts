@@ -67,20 +67,24 @@ export async function GET(): Promise<NextResponse> {
     .slice(0, RECENT_LIMIT);
 
   const popular: DashboardItem[] = [
-    ...popularDiagrams.map((d) => ({
-      type: "diagram" as const,
-      id: d._id.toString(),
-      name: d.name,
-      ownerName: (d.ownerId as unknown as { name: string }).name,
-      updatedAt: d.updatedAt.toISOString(),
-    })),
-    ...popularSets.map((s) => ({
-      type: "flashcard-set" as const,
-      id: s._id.toString(),
-      name: s.name,
-      ownerName: (s.ownerId as unknown as { name: string }).name,
-      updatedAt: s.updatedAt.toISOString(),
-    })),
+    ...popularDiagrams
+      .filter((d) => d.ownerId)
+      .map((d) => ({
+        type: "diagram" as const,
+        id: d._id.toString(),
+        name: d.name,
+        ownerName: (d.ownerId as unknown as { name: string }).name,
+        updatedAt: d.updatedAt.toISOString(),
+      })),
+    ...popularSets
+      .filter((s) => s.ownerId)
+      .map((s) => ({
+        type: "flashcard-set" as const,
+        id: s._id.toString(),
+        name: s.name,
+        ownerName: (s.ownerId as unknown as { name: string }).name,
+        updatedAt: s.updatedAt.toISOString(),
+      })),
   ]
     .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
     .slice(0, POPULAR_LIMIT);

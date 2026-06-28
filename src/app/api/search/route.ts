@@ -44,24 +44,34 @@ export async function GET(request: Request): Promise<NextResponse> {
   ]);
 
   return NextResponse.json({
-    diagrams: diagrams.map((d) => ({
-      id: d._id.toString(),
-      name: d.name,
-      visibility: d.visibility,
-      ownerName: (d.ownerId as unknown as { name: string }).name,
-      isOwner: (d.ownerId as unknown as { _id: { toString(): string } })._id.toString() === userId,
-      updatedAt: d.updatedAt,
-    })),
-    flashcardSets: flashcardSets.map((s) => ({
-      id: s._id.toString(),
-      name: s.name,
-      description: s.description,
-      visibility: s.visibility,
-      ownerName: (s.ownerId as unknown as { name: string }).name,
-      isOwner: (s.ownerId as unknown as { _id: { toString(): string } })._id.toString() === userId,
-      cardCount: s.cards.length,
-      updatedAt: s.updatedAt,
-    })),
+    diagrams: diagrams
+      .filter((d) => d.ownerId)
+      .map((d) => {
+        const owner = d.ownerId as unknown as { _id: { toString(): string }; name: string };
+        return {
+          id: d._id.toString(),
+          name: d.name,
+          visibility: d.visibility,
+          ownerName: owner.name,
+          isOwner: owner._id.toString() === userId,
+          updatedAt: d.updatedAt,
+        };
+      }),
+    flashcardSets: flashcardSets
+      .filter((s) => s.ownerId)
+      .map((s) => {
+        const owner = s.ownerId as unknown as { _id: { toString(): string }; name: string };
+        return {
+          id: s._id.toString(),
+          name: s.name,
+          description: s.description,
+          visibility: s.visibility,
+          ownerName: owner.name,
+          isOwner: owner._id.toString() === userId,
+          cardCount: s.cards.length,
+          updatedAt: s.updatedAt,
+        };
+      }),
     users: users.map((u) => ({ id: u._id.toString(), name: u.name })),
   });
 }
