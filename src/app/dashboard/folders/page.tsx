@@ -91,9 +91,11 @@ export default function FoldersPage(): React.JSX.Element {
             <li key={folder.id}>
               <Link
                 href={`/dashboard/folders/${folder.id}`}
-                className="flex items-center gap-4 rounded-xl border-2 border-border/60 bg-card px-5 py-4 transition-colors hover:border-primary"
+                className="flex items-center gap-4 rounded-xl border-2 border-border/60 bg-card px-5 py-4 transition-all hover:-translate-y-0.5 hover:border-primary hover:shadow-lg"
               >
-                <FolderClosed className="h-5 w-5 text-muted-foreground" />
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-500/15 text-amber-400">
+                  <FolderClosed className="h-5 w-5" />
+                </span>
                 <span className="text-base font-semibold">{folder.name}</span>
               </Link>
             </li>

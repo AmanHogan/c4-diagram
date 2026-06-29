@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   FolderClosed,
@@ -15,6 +15,13 @@ import {
 } from "lucide-react";
 import { signOut } from "next-auth/react";
 import { Input } from "@/components/ui/input";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 interface HeaderBarProps {
   userId: string;
@@ -63,8 +70,6 @@ const CREATE_OPTIONS: {
 export function HeaderBar({ userId, userName }: HeaderBarProps): React.JSX.Element {
   const router = useRouter();
   const [query, setQuery] = useState("");
-  const createMenuRef = useRef<HTMLDetailsElement>(null);
-  const avatarMenuRef = useRef<HTMLDetailsElement>(null);
 
   const handleSearch = (e: React.FormEvent): void => {
     e.preventDefault();
@@ -74,7 +79,6 @@ export function HeaderBar({ userId, userName }: HeaderBarProps): React.JSX.Eleme
   };
 
   const handleCreate = async (option: (typeof CREATE_OPTIONS)[number]): Promise<void> => {
-    createMenuRef.current?.removeAttribute("open");
     const name = window.prompt(`Name your new ${option.label.toLowerCase()}`);
     if (!name || !name.trim()) return;
     const res = await fetch(option.createUrl, {
@@ -90,12 +94,12 @@ export function HeaderBar({ userId, userName }: HeaderBarProps): React.JSX.Eleme
   const initial = userName.charAt(0).toUpperCase() || "?";
 
   return (
-    <header className="flex h-16 shrink-0 items-center gap-4 border-b bg-sidebar px-5">
+    <header className="flex h-16 shrink-0 items-center gap-4 border-b border-border bg-sidebar px-5">
       <button
         type="button"
         title="Dashboard"
         onClick={() => router.push("/dashboard")}
-        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
       >
         <LayoutDashboard className="h-5 w-5" />
       </button>
@@ -112,60 +116,62 @@ export function HeaderBar({ userId, userName }: HeaderBarProps): React.JSX.Eleme
         </div>
       </form>
 
-      <details ref={createMenuRef} className="relative shrink-0">
-        <summary className="flex h-10 w-10 cursor-pointer list-none items-center justify-center rounded-lg text-muted-foreground marker:content-[''] hover:bg-sidebar-accent hover:text-sidebar-accent-foreground">
-          <Plus className="h-5 w-5" />
-        </summary>
-        <div className="absolute right-0 z-20 mt-1 w-52 rounded-xl border-2 border-border/60 bg-popover p-1.5 shadow-lg">
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <button
+            type="button"
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+          >
+            <Plus className="h-5 w-5" />
+          </button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-52">
           {CREATE_OPTIONS.map((option) => (
-            <button
+            <DropdownMenuItem
               key={option.kind}
-              type="button"
               onClick={() => void handleCreate(option)}
-              className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-base hover:bg-accent"
+              className="gap-3 py-2.5 text-base"
             >
               <option.icon className="h-4 w-4" />
               {option.label}
-            </button>
+            </DropdownMenuItem>
           ))}
-        </div>
-      </details>
+        </DropdownMenuContent>
+      </DropdownMenu>
 
-      <details ref={avatarMenuRef} className="relative shrink-0">
-        <summary className="flex h-10 w-10 cursor-pointer list-none items-center justify-center rounded-full bg-primary text-base font-semibold text-primary-foreground marker:content-['']">
-          {initial}
-        </summary>
-        <div className="absolute right-0 z-20 mt-1 w-56 rounded-xl border-2 border-border/60 bg-popover p-1.5 shadow-lg">
-          <p className="truncate px-3 py-2 text-base font-semibold">{userName}</p>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
           <button
             type="button"
-            onClick={() => {
-              avatarMenuRef.current?.removeAttribute("open");
-              router.push(`/dashboard/users/${userId}`);
-            }}
-            className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-base hover:bg-accent"
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-blue-600 text-base font-semibold text-white"
+          >
+            {initial}
+          </button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-56">
+          <p className="truncate px-2 py-2 text-base font-semibold">{userName}</p>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem
+            onClick={() => router.push(`/dashboard/users/${userId}`)}
+            className="gap-3 py-2.5 text-base"
           >
             <UserRound className="h-4 w-4" /> View public profile
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              avatarMenuRef.current?.removeAttribute("open");
-              router.push("/dashboard/settings");
-            }}
-            className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-base hover:bg-accent"
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            onClick={() => router.push("/dashboard/settings")}
+            className="gap-3 py-2.5 text-base"
           >
             <Settings className="h-4 w-4" /> Settings
-          </button>
-          <button
-            type="button"
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem
             onClick={() => void signOut({ callbackUrl: "/login" })}
-            className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-base hover:bg-accent"
+            className="gap-3 py-2.5 text-base"
           >
             <LogOut className="h-4 w-4" /> Sign out
-          </button>
-        </div>
-      </details>
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
     </header>
   );
 }

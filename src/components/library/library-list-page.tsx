@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Globe, Lock, Plus } from "lucide-react";
+import { Globe, Layers, Lock, Network, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
@@ -122,14 +122,23 @@ export function LibraryListPage({
             <li key={item.id}>
               <Link
                 href={detailHref(item.id)}
-                className="flex items-center justify-between gap-4 rounded-xl border-2 border-border/60 bg-card px-5 py-4 transition-colors hover:border-primary"
+                className="flex items-center justify-between gap-4 rounded-xl border-2 border-border/60 bg-card px-5 py-4 transition-all hover:-translate-y-0.5 hover:border-primary hover:shadow-lg"
               >
-                <div className="min-w-0">
-                  <p className="truncate text-base font-semibold">{item.name}</p>
-                  <p className="text-sm text-muted-foreground">
-                    {item.cardCount !== undefined ? `${item.cardCount} cards · ` : ""}
-                    Updated {new Date(item.updatedAt).toLocaleDateString()}
-                  </p>
+                <div className="flex items-center gap-4 min-w-0">
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-500/15 text-blue-400">
+                    {item.cardCount !== undefined ? (
+                      <Layers className="h-5 w-5" />
+                    ) : (
+                      <Network className="h-5 w-5" />
+                    )}
+                  </span>
+                  <div className="min-w-0">
+                    <p className="truncate text-base font-semibold">{item.name}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {item.cardCount !== undefined ? `${item.cardCount} cards · ` : ""}
+                      Updated {new Date(item.updatedAt).toLocaleDateString()}
+                    </p>
+                  </div>
                 </div>
                 <span className="flex shrink-0 items-center gap-1.5 text-sm text-muted-foreground">
                   {item.visibility === "public" ? (
