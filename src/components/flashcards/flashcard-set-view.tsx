@@ -578,6 +578,46 @@ export function FlashcardSetView({ setId }: FlashcardSetViewProps): React.JSX.El
     return { known, learning, untouched: cards.length - known - learning };
   }, [cards, progress]);
 
+  useEffect(() => {
+    if (mode !== "study" || studyComplete || cards.length === 0) return;
+    const card = cards[studyOrder[studyIndex]];
+    if (!card) return;
+
+    const handler = (e: KeyboardEvent): void => {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+
+      switch (e.key) {
+        case " ":
+          e.preventDefault();
+          setFlipped((f) => !f);
+          break;
+        case "1":
+          void markAndAdvance(card.id, "learning");
+          break;
+        case "2":
+          void markAndAdvance(card.id, "known");
+          break;
+        case "ArrowLeft":
+          e.preventDefault();
+          setStudyIndex((i) => Math.max(0, i - 1));
+          setFlipped(false);
+          break;
+        case "ArrowRight":
+          e.preventDefault();
+          if (studyIndex < studyOrder.length - 1) {
+            setStudyIndex((i) => i + 1);
+            setFlipped(false);
+          }
+          break;
+      }
+    };
+
+    window.addEventListener("keydown", handler);
+    return (): void => {
+      window.removeEventListener("keydown", handler);
+    };
+  }, [mode, studyComplete, cards, studyOrder, studyIndex, markAndAdvance]);
+
   if (notFound) {
     return (
       <div className="mx-auto max-w-3xl py-12 text-center text-base text-muted-foreground">
@@ -709,7 +749,7 @@ export function FlashcardSetView({ setId }: FlashcardSetViewProps): React.JSX.El
         </div>
 
         <p className="text-sm text-muted-foreground">
-          Card {studyIndex + 1} of {studyOrder.length} · click to flip
+          Card {studyIndex + 1} of {studyOrder.length} · space to flip · 1 still learning · 2 know · ←→ navigate
         </p>
 
         <div className="flex items-center gap-3">
