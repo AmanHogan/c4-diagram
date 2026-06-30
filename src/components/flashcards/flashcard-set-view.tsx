@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   CheckCircle2,
@@ -74,6 +74,79 @@ interface SortableCardProps {
   onDelete: (index: number) => void;
 }
 
+interface MarkdownTextareaProps {
+  value: string;
+  onChange: (value: string) => void;
+  placeholder?: string;
+  disabled?: boolean;
+  className?: string;
+}
+
+const MARKDOWN_SHORTCUTS: Record<string, { prefix: string; suffix: string }> = {
+  b: { prefix: "**", suffix: "**" },
+  i: { prefix: "*", suffix: "*" },
+  u: { prefix: "<u>", suffix: "</u>" },
+  e: { prefix: "`", suffix: "`" },
+  k: { prefix: "[", suffix: "](url)" },
+};
+
+/**
+ * A textarea that supports markdown keyboard shortcuts (Cmd/Ctrl+B for bold,
+ * Cmd/Ctrl+I for italic, Cmd/Ctrl+U for underline, Cmd/Ctrl+E for inline code,
+ * Cmd/Ctrl+K for link). Wraps the selection or inserts markers at the cursor.
+ * @param props Standard textarea props plus a string onChange handler.
+ * @returns The rendered textarea with shortcut support.
+ */
+function MarkdownTextarea({ value, onChange, placeholder, disabled, className }: MarkdownTextareaProps): React.JSX.Element {
+  const ref = useRef<HTMLTextAreaElement>(null);
+
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+      const shortcut = MARKDOWN_SHORTCUTS[e.key.toLowerCase()];
+      if (!shortcut || !(e.metaKey || e.ctrlKey)) return;
+      e.preventDefault();
+
+      const textarea = ref.current;
+      if (!textarea) return;
+
+      const start = textarea.selectionStart;
+      const end = textarea.selectionEnd;
+      const selected = value.slice(start, end);
+      const before = value.slice(0, start);
+      const after = value.slice(end);
+
+      const wrapped = `${shortcut.prefix}${selected || "text"}${shortcut.suffix}`;
+      const newValue = `${before}${wrapped}${after}`;
+      onChange(newValue);
+
+      requestAnimationFrame(() => {
+        if (selected) {
+          textarea.selectionStart = start;
+          textarea.selectionEnd = start + wrapped.length;
+        } else {
+          const cursorPos = start + shortcut.prefix.length;
+          textarea.selectionStart = cursorPos;
+          textarea.selectionEnd = cursorPos + 4;
+        }
+        textarea.focus();
+      });
+    },
+    [value, onChange],
+  );
+
+  return (
+    <Textarea
+      ref={ref}
+      disabled={disabled}
+      value={value}
+      placeholder={placeholder}
+      onChange={(e) => onChange(e.target.value)}
+      onKeyDown={handleKeyDown}
+      className={className}
+    />
+  );
+}
+
 function newCard(): Flashcard {
   return { id: `card-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, front: "", back: "" };
 }
@@ -134,11 +207,11 @@ function SortableCard({ card, index, isOwner, onUpdate, onDelete }: SortableCard
         <label className="mb-1 block text-xs font-semibold uppercase tracking-wider text-muted-foreground">
           Term
         </label>
-        <Textarea
+        <MarkdownTextarea
           disabled={!isOwner}
           value={card.front}
           placeholder="Enter term"
-          onChange={(e) => onUpdate(index, "front", e.target.value)}
+          onChange={(val) => onUpdate(index, "front", val)}
           className="min-h-[80px] text-base"
         />
       </div>
@@ -146,11 +219,11 @@ function SortableCard({ card, index, isOwner, onUpdate, onDelete }: SortableCard
         <label className="mb-1 block text-xs font-semibold uppercase tracking-wider text-muted-foreground">
           Definition
         </label>
-        <Textarea
+        <MarkdownTextarea
           disabled={!isOwner}
           value={card.back}
           placeholder="Enter definition"
-          onChange={(e) => onUpdate(index, "back", e.target.value)}
+          onChange={(val) => onUpdate(index, "back", val)}
           className="min-h-[80px] text-base"
         />
       </div>
