@@ -212,7 +212,7 @@ function SortableCard({ card, index, isOwner, onUpdate, onDelete }: SortableCard
           value={card.front}
           placeholder="Enter term"
           onChange={(val) => onUpdate(index, "front", val)}
-          className="min-h-[80px] text-base"
+          className="min-h-[80px] text-base sm:text-lg"
         />
       </div>
       <div className="flex-1">
@@ -224,7 +224,7 @@ function SortableCard({ card, index, isOwner, onUpdate, onDelete }: SortableCard
           value={card.back}
           placeholder="Enter definition"
           onChange={(val) => onUpdate(index, "back", val)}
-          className="min-h-[80px] text-base"
+          className="min-h-[80px] text-base sm:text-lg"
         />
       </div>
     </div>
@@ -731,12 +731,12 @@ export function FlashcardSetView({ setId }: FlashcardSetViewProps): React.JSX.El
               if (e.key === "Enter" || e.key === " ") setFlipped((f) => !f);
             }}
             className={cn(
-              "relative h-80 w-full cursor-pointer transition-transform duration-500 ease-out [transform-style:preserve-3d]",
+              "relative h-80 sm:h-96 w-full cursor-pointer transition-transform duration-500 ease-out [transform-style:preserve-3d]",
               flipped && "[transform:rotateY(180deg)]",
             )}
           >
             <div className="absolute inset-0 flex items-center justify-center overflow-y-auto rounded-2xl border-2 border-border/60 bg-card p-8 text-center shadow-lg [backface-visibility:hidden]">
-              <div className="text-lg">
+              <div className="text-2xl sm:text-3xl">
                 <MarkdownContent content={frontContent || "*(empty)*"} />
               </div>
             </div>
@@ -905,11 +905,11 @@ export function FlashcardSetView({ setId }: FlashcardSetViewProps): React.JSX.El
                 <div className="flex w-10 shrink-0 items-center justify-center border-r border-border/40 bg-muted/30 text-sm font-medium text-muted-foreground">
                   {i + 1}
                 </div>
-                <div className="flex flex-1 items-center border-r border-border/40 p-4">
-                  <p className="text-base">{card.front || <span className="italic text-muted-foreground">empty</span>}</p>
+                <div className="flex flex-1 items-center border-r border-border/40 p-4 sm:p-5">
+                  <p className="text-base sm:text-lg">{card.front || <span className="italic text-muted-foreground">empty</span>}</p>
                 </div>
-                <div className="flex flex-1 items-center p-4">
-                  <p className="text-base">{card.back || <span className="italic text-muted-foreground">empty</span>}</p>
+                <div className="flex flex-1 items-center p-4 sm:p-5">
+                  <p className="text-base sm:text-lg">{card.back || <span className="italic text-muted-foreground">empty</span>}</p>
                 </div>
               </div>
             ))}
