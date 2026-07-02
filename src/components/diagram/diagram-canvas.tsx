@@ -229,6 +229,7 @@ function DiagramCanvasInner({ diagramId }: DiagramCanvasInnerProps): React.JSX.E
   const [selectedEdge, setSelectedEdge] = useState<DiagramEdgeData | null>(null);
   const [selectedNodeIds, setSelectedNodeIds] = useState<string[]>([]);
   const wrapperRef = useRef<HTMLDivElement>(null);
+  const clipboardRef = useRef<{ nodes: DiagramNodeData[]; edges: DiagramEdgeData[] } | null>(null);
   const { fitView } = useReactFlow();
 
   const readOnly = !isOwner;
@@ -309,6 +310,114 @@ function DiagramCanvasInner({ diagramId }: DiagramCanvasInnerProps): React.JSX.E
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scopeId]);
+
+  const selectedNodeIdsRef = useRef<string[]>([]);
+  useEffect(() => {
+    selectedNodeIdsRef.current = selectedNodeIds;
+  }, [selectedNodeIds]);
+
+  const selectedEdgeRef = useRef<DiagramEdgeData | null>(null);
+  useEffect(() => {
+    selectedEdgeRef.current = selectedEdge;
+  }, [selectedEdge]);
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent): void => {
+      const target = e.target as HTMLElement;
+      if (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable) return;
+
+      const mod = e.metaKey || e.ctrlKey;
+
+      if (mod && e.key === "c") {
+        const ids = selectedNodeIdsRef.current;
+        if (ids.length === 0) return;
+        e.preventDefault();
+        const idSet = new Set(ids);
+        const copiedNodes = diagramRef.current.nodes.filter((n) => idSet.has(n.id));
+        const copiedEdges = diagramRef.current.edges.filter(
+          (edge) => idSet.has(edge.source) && idSet.has(edge.target),
+        );
+        clipboardRef.current = { nodes: copiedNodes, edges: copiedEdges };
+        toast.success(`Copied ${copiedNodes.length} node${copiedNodes.length > 1 ? "s" : ""}`);
+        return;
+      }
+
+      if (mod && e.key === "v") {
+        if (readOnlyRef.current || !clipboardRef.current) return;
+        e.preventDefault();
+        const { nodes: srcNodes, edges: srcEdges } = clipboardRef.current;
+        if (srcNodes.length === 0) return;
+
+        const idMap = new Map<string, string>();
+        const now = Date.now();
+        srcNodes.forEach((n, i) => {
+          idMap.set(n.id, `node-${now}-${i}`);
+        });
+
+        const pastedNodes: DiagramNodeData[] = srcNodes.map((n) => ({
+          ...n,
+          id: idMap.get(n.id)!,
+          parentId: idMap.get(n.parentId ?? "") ?? scopeIdRef.current,
+          position: { x: n.position.x + 40, y: n.position.y + 40 },
+        }));
+
+        const pastedEdges: DiagramEdgeData[] = srcEdges.map((edge, i) => ({
+          ...edge,
+          id: `e-${idMap.get(edge.source)}-${idMap.get(edge.target)}-${now}-${i}`,
+          source: idMap.get(edge.source) ?? edge.source,
+          target: idMap.get(edge.target) ?? edge.target,
+        }));
+
+        diagramRef.current = {
+          nodes: [...diagramRef.current.nodes, ...pastedNodes],
+          edges: [...diagramRef.current.edges, ...pastedEdges],
+        };
+        rebuildFlow(diagramRef.current, scopeIdRef.current, onToggleExpand, onDrillIn);
+        toast.success(`Pasted ${pastedNodes.length} node${pastedNodes.length > 1 ? "s" : ""}`);
+        return;
+      }
+
+      if ((e.key === "Delete" || e.key === "Backspace") && !mod) {
+        if (readOnlyRef.current) return;
+        const ids = selectedNodeIdsRef.current;
+        if (ids.length > 0) {
+          e.preventDefault();
+          const toRemove = new Set<string>();
+          for (const id of ids) {
+            toRemove.add(id);
+            for (const desc of descendantIds(diagramRef.current.nodes, id)) {
+              toRemove.add(desc);
+            }
+          }
+          diagramRef.current = {
+            nodes: diagramRef.current.nodes.filter((n) => !toRemove.has(n.id)),
+            edges: diagramRef.current.edges.filter(
+              (edge) => !toRemove.has(edge.source) && !toRemove.has(edge.target),
+            ),
+          };
+          setSelectedNode(null);
+          setSelectedNodeIds([]);
+          rebuildFlow(diagramRef.current, scopeIdRef.current, onToggleExpand, onDrillIn);
+          return;
+        }
+        const edge = selectedEdgeRef.current;
+        if (edge) {
+          e.preventDefault();
+          diagramRef.current = {
+            ...diagramRef.current,
+            edges: diagramRef.current.edges.filter((ed) => ed.id !== edge.id),
+          };
+          setSelectedEdge(null);
+          rebuildFlow(diagramRef.current, scopeIdRef.current, onToggleExpand, onDrillIn);
+        }
+      }
+    };
+
+    window.addEventListener("keydown", handler);
+    return (): void => {
+      window.removeEventListener("keydown", handler);
+    };
+  }, [rebuildFlow, onToggleExpand, onDrillIn]);
 
   useEffect(() => {
     let cancelled = false;
