@@ -16,6 +16,9 @@ const userSchema = new mongoose.Schema(
       background: { type: String },
       card: { type: String },
     },
+    /** Light/dark for the diagram canvas specifically — independent of the
+     * (currently dark-only) rest-of-app theme above. */
+    diagramCanvasMode: { type: String, enum: ["dark", "light"] },
   },
   { timestamps: true },
 );

@@ -71,6 +71,48 @@
   --sidebar-ring: oklch(0.708 0 0);
 }
 
+/* Excalidraw-style light canvas — the app is dark-mode-only elsewhere, but
+   the diagram view can opt back into the (already fully authored) :root
+   light palette, scoped to just that screen. Mirrors :root exactly so it
+   overrides whatever the ancestor .dark class set via inheritance. */
+.diagram-canvas-light {
+  /* Redefining the custom properties alone isn't enough: `color` is an
+     inherited property, so anything without its own `text-foreground` class
+     (e.g. a node label rendered as a bare <span>) would otherwise keep
+     showing whatever `color` <body> already resolved to (the dark theme's
+     off-white) instead of picking up these overridden variables. Setting
+     `color`/`background-color` here re-establishes this div as the
+     inheritance root, the same way `body` does for the rest of the app. */
+  color: oklch(0.145 0 0);
+  background-color: oklch(1 0 0);
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.145 0 0);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.145 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.145 0 0);
+  --primary: #2563eb;
+  --primary-foreground: #ffffff;
+  --secondary: oklch(0.97 0 0);
+  --secondary-foreground: oklch(0.205 0 0);
+  --muted: oklch(0.97 0 0);
+  --muted-foreground: oklch(0.556 0 0);
+  --accent: oklch(0.97 0 0);
+  --accent-foreground: oklch(0.205 0 0);
+  --destructive: #ef4444;
+  --border: oklch(0.922 0 0);
+  --input: oklch(0.922 0 0);
+  --ring: #2563eb;
+  --sidebar: oklch(0.985 0 0);
+  --sidebar-foreground: oklch(0.145 0 0);
+  --sidebar-primary: oklch(0.205 0 0);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.97 0 0);
+  --sidebar-accent-foreground: oklch(0.205 0 0);
+  --sidebar-border: oklch(0.922 0 0);
+  --sidebar-ring: oklch(0.708 0 0);
+}
+
 .dark {
   /* Three-tier neutral dark: gray canvas center (#1F2121), darker side
      bars (#171818), and a lighter grey (#3D3E3F) for elevated elements. */

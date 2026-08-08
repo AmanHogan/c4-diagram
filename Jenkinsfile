@@ -28,7 +28,7 @@ spec:
   }
 
   environment {
-    REGISTRY   = "192.168.1.245:5001"
+    REGISTRY   = "192.168.4.245:5001"
     IMAGE      = "c4-diagram"
     INFRA_REPO = "github.com/AmanHogan/k3s-data-platform.git"
     MANIFEST   = "manifests/c4-diagram/deployment.yaml"

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Trash2, Group, Ungroup, Plus, PanelRightClose, PanelRightOpen } from "lucide-react";
+import { Trash2, Group, Ungroup, Plus, PanelRightClose, PanelRightOpen, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -15,20 +15,28 @@ import {
 import {
   EDGE_KIND_LABELS,
   EDGE_STYLES,
+  HANDLE_SIDE_LABELS,
   NODE_COLORS,
+  NODE_KIND_CATEGORIES,
   NODE_KIND_LABELS,
+  TEXT_SIZE_LABELS,
   type ArrowStyle,
   type DiagramEdgeData,
   type DiagramNodeData,
   type EdgeKind,
+  type HandleSide,
   type LineStyle,
   type NodeKind,
   type NodeShape,
+  type TextSize,
 } from "@/lib/diagram-types";
 import { useResizableWidth } from "@/lib/use-resizable-width";
+import type { DiagramTool } from "@/components/diagram/diagram-toolbar";
 
-const NODE_KINDS = Object.keys(NODE_KIND_LABELS) as NodeKind[];
+const TEXT_SIZES = Object.keys(TEXT_SIZE_LABELS) as TextSize[];
+
 const EDGE_KINDS = Object.keys(EDGE_KIND_LABELS) as EdgeKind[];
+const HANDLE_SIDES = Object.keys(HANDLE_SIDE_LABELS) as HandleSide[];
 const SHAPES: { value: NodeShape; label: string }[] = [
   { value: "rectangle", label: "Rectangle" },
   { value: "rounded", label: "Rounded" },
@@ -45,6 +53,32 @@ const ARROW_STYLES: { value: ArrowStyle; label: string }[] = [
   { value: "both", label: "Bidirectional ↔" },
   { value: "none", label: "No arrowheads —" },
 ];
+
+const RECENT_KINDS_STORAGE_KEY = "c4-diagram:recent-node-kinds";
+const MAX_RECENT_KINDS = 6;
+
+function loadRecentKinds(): NodeKind[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = window.localStorage.getItem(RECENT_KINDS_STORAGE_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw) as unknown;
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter((k): k is NodeKind => typeof k === "string" && k in NODE_KIND_LABELS);
+  } catch {
+    return [];
+  }
+}
+
+function saveRecentKind(kind: NodeKind): NodeKind[] {
+  const next = [kind, ...loadRecentKinds().filter((k) => k !== kind)].slice(0, MAX_RECENT_KINDS);
+  try {
+    window.localStorage.setItem(RECENT_KINDS_STORAGE_KEY, JSON.stringify(next));
+  } catch {
+    // localStorage unavailable (private mode, etc.) — recents just won't persist.
+  }
+  return next;
+}
 
 interface FillColorPickerProps {
   value: string;
@@ -90,6 +124,233 @@ function FillColorPicker({ value, onCommit }: FillColorPickerProps): React.JSX.E
   );
 }
 
+/** Shared dropdown body: a search box plus a scrollable, categorized (and
+ * optionally "Recent") list of node kinds. Used by both the "Add node"
+ * picker and the "change kind" selector below. */
+function KindPickerList({
+  query,
+  onQueryChange,
+  recentKinds,
+  onPick,
+  currentKind,
+}: {
+  query: string;
+  onQueryChange: (value: string) => void;
+  recentKinds: NodeKind[];
+  onPick: (kind: NodeKind) => void;
+  currentKind?: NodeKind;
+}): React.JSX.Element {
+  const inputRef = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    inputRef.current?.focus();
+  }, []);
+
+  const lowerQuery = query.trim().toLowerCase();
+  const matches = (kind: NodeKind): boolean =>
+    lowerQuery.length === 0 || NODE_KIND_LABELS[kind].toLowerCase().includes(lowerQuery);
+  const recentMatches = lowerQuery.length === 0 ? recentKinds : recentKinds.filter(matches);
+
+  let anyMatch = recentMatches.length > 0;
+
+  return (
+    <div className="absolute left-0 top-full z-50 mt-1 max-h-80 w-72 overflow-hidden rounded-lg border bg-popover shadow-lg">
+      <div className="flex items-center gap-2 border-b px-2 py-1.5">
+        <Search className="h-3.5 w-3.5 text-muted-foreground" />
+        <input
+          ref={inputRef}
+          type="text"
+          className="h-6 flex-1 bg-transparent text-xs outline-none placeholder:text-muted-foreground"
+          placeholder="Search node kinds…"
+          value={query}
+          onChange={(e) => onQueryChange(e.target.value)}
+        />
+      </div>
+      <div className="max-h-72 overflow-y-auto p-1">
+        {recentMatches.length > 0 ? (
+          <div>
+            <p className="px-2 pb-0.5 pt-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+              Recent
+            </p>
+            {recentMatches.map((kind) => (
+              <button
+                key={`recent-${kind}`}
+                type="button"
+                className={`flex w-full items-center gap-2 rounded-md px-2 py-1 text-xs hover:bg-accent ${
+                  kind === currentKind ? "bg-accent font-medium" : ""
+                }`}
+                onClick={() => onPick(kind)}
+              >
+                <span
+                  className="inline-block h-2.5 w-2.5 shrink-0 rounded-full"
+                  style={{ backgroundColor: NODE_COLORS[kind] }}
+                />
+                {NODE_KIND_LABELS[kind]}
+              </button>
+            ))}
+          </div>
+        ) : null}
+        {Object.entries(NODE_KIND_CATEGORIES).map(([category, kinds]) => {
+          const filtered = kinds.filter(matches);
+          if (filtered.length === 0) return null;
+          anyMatch = true;
+          return (
+            <div key={category}>
+              <p className="px-2 pb-0.5 pt-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                {category}
+              </p>
+              {filtered.map((kind) => (
+                <button
+                  key={kind}
+                  type="button"
+                  className={`flex w-full items-center gap-2 rounded-md px-2 py-1 text-xs hover:bg-accent ${
+                    kind === currentKind ? "bg-accent font-medium" : ""
+                  }`}
+                  onClick={() => onPick(kind)}
+                >
+                  <span
+                    className="inline-block h-2.5 w-2.5 shrink-0 rounded-full"
+                    style={{ backgroundColor: NODE_COLORS[kind] }}
+                  />
+                  {NODE_KIND_LABELS[kind]}
+                </button>
+              ))}
+            </div>
+          );
+        })}
+        {!anyMatch ? <p className="px-2 py-3 text-center text-xs text-muted-foreground">No matches</p> : null}
+      </div>
+    </div>
+  );
+}
+
+interface SearchableKindPickerProps {
+  onSelect: (kind: NodeKind) => void;
+  /** The currently-armed kind (shown in the trigger instead of the generic
+   * "Add node…" placeholder), if any. */
+  armedKind?: NodeKind | null;
+}
+
+/** Searchable dropdown for arming a node kind to place, grouped by category
+ * with a "Recent" section (persisted to localStorage) up top. */
+function SearchableKindPicker({ onSelect, armedKind }: SearchableKindPickerProps): React.JSX.Element {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const [recentKinds, setRecentKinds] = useState<NodeKind[]>([]);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const handleClickOutside = (e: MouseEvent): void => {
+      if (containerRef.current && !containerRef.current.contains(e.target as HTMLElement)) {
+        setOpen(false);
+        setQuery("");
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return (): void => document.removeEventListener("mousedown", handleClickOutside);
+  }, [open]);
+
+  return (
+    <div ref={containerRef} className="relative">
+      <button
+        type="button"
+        className="flex h-8 w-full items-center gap-1.5 rounded-md border border-input bg-transparent px-2 text-xs text-muted-foreground hover:bg-accent hover:text-foreground"
+        onClick={() => {
+          if (!open) setRecentKinds(loadRecentKinds());
+          setOpen(!open);
+        }}
+      >
+        {armedKind ? (
+          <>
+            <span
+              className="inline-block h-2.5 w-2.5 shrink-0 rounded-full"
+              style={{ backgroundColor: NODE_COLORS[armedKind] }}
+            />
+            <span className="text-foreground">{NODE_KIND_LABELS[armedKind]}</span>
+          </>
+        ) : (
+          <>
+            <Plus className="h-3.5 w-3.5" />
+            <span>Choose a kind…</span>
+          </>
+        )}
+      </button>
+      {open ? (
+        <KindPickerList
+          query={query}
+          onQueryChange={setQuery}
+          recentKinds={recentKinds}
+          currentKind={armedKind ?? undefined}
+          onPick={(kind) => {
+            onSelect(kind);
+            saveRecentKind(kind);
+            setOpen(false);
+            setQuery("");
+          }}
+        />
+      ) : null}
+    </div>
+  );
+}
+
+interface SearchableKindSelectProps {
+  value: NodeKind;
+  onChange: (kind: NodeKind) => void;
+  disabled?: boolean;
+}
+
+/** Searchable dropdown for changing a selected node's kind. */
+function SearchableKindSelect({ value, onChange, disabled }: SearchableKindSelectProps): React.JSX.Element {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const [recentKinds, setRecentKinds] = useState<NodeKind[]>([]);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const handleClickOutside = (e: MouseEvent): void => {
+      if (containerRef.current && !containerRef.current.contains(e.target as HTMLElement)) {
+        setOpen(false);
+        setQuery("");
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return (): void => document.removeEventListener("mousedown", handleClickOutside);
+  }, [open]);
+
+  return (
+    <div ref={containerRef} className="relative">
+      <button
+        type="button"
+        disabled={disabled}
+        className="flex h-8 w-full items-center gap-1.5 rounded-md border border-input bg-transparent px-2 text-xs disabled:opacity-50"
+        onClick={() => {
+          if (disabled) return;
+          if (!open) setRecentKinds(loadRecentKinds());
+          setOpen(!open);
+        }}
+      >
+        <span className="inline-block h-2.5 w-2.5 rounded-full" style={{ backgroundColor: NODE_COLORS[value] }} />
+        {NODE_KIND_LABELS[value]}
+      </button>
+      {open ? (
+        <KindPickerList
+          query={query}
+          onQueryChange={setQuery}
+          recentKinds={recentKinds}
+          currentKind={value}
+          onPick={(kind) => {
+            onChange(kind);
+            saveRecentKind(kind);
+            setOpen(false);
+            setQuery("");
+          }}
+        />
+      ) : null}
+    </div>
+  );
+}
+
 interface PropertiesPanelProps {
   readOnly?: boolean;
   selectedNode: DiagramNodeData | null;
@@ -101,12 +362,18 @@ interface PropertiesPanelProps {
   onDeleteEdge: (id: string) => void;
   onGroup: (ids: string[]) => void;
   onUngroup: (id: string) => void;
-  onAddNode: (kind: NodeKind) => void;
+  /** The currently active canvas tool — the "Add node" section only shows
+   * while this is "node", mirroring a tool-first editor like Excalidraw. */
+  tool: DiagramTool;
+  /** The kind armed for placement while the Node tool is active. */
+  pendingNodeKind: NodeKind | null;
+  onArmNodeKind: (kind: NodeKind) => void;
 }
 
 /**
  * Side panel for editing the selected node or edge's style and metadata, plus
- * grouping multi-selected nodes and adding new nodes to the current scope.
+ * grouping multi-selected nodes and arming a node kind to place (only while
+ * the Node tool is active — pick the tool up top, then click the canvas).
  * @param props Selection state and mutation callbacks from the canvas.
  * @returns The rendered panel.
  */
@@ -121,7 +388,9 @@ export function PropertiesPanel({
   onDeleteEdge,
   onGroup,
   onUngroup,
-  onAddNode,
+  tool,
+  pendingNodeKind,
+  onArmNodeKind,
 }: PropertiesPanelProps): React.JSX.Element {
   const { width, onPointerDown } = useResizableWidth(288, 240, 480, "left");
   const [collapsed, setCollapsed] = useState(false);
@@ -175,26 +444,26 @@ export function PropertiesPanel({
         <p className="rounded-md border border-dashed px-2 py-1.5 text-xs text-muted-foreground">
           View only — fork this diagram to edit it.
         </p>
-      ) : (
+      ) : tool === "node" ? (
         <div>
           <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
             Add node
           </p>
-          <Select onValueChange={(value) => onAddNode(value as NodeKind)}>
-            <SelectTrigger size="sm">
-              <span className="flex items-center gap-1.5 text-muted-foreground">
-                <Plus className="h-3.5 w-3.5" /> <SelectValue placeholder="Choose a kind…" />
-              </span>
-            </SelectTrigger>
-            <SelectContent>
-              {NODE_KINDS.map((kind) => (
-                <SelectItem key={kind} value={kind}>
-                  {NODE_KIND_LABELS[kind]}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <SearchableKindPicker onSelect={onArmNodeKind} armedKind={pendingNodeKind} />
+          <p className="mt-1.5 text-[11px] text-muted-foreground">
+            {pendingNodeKind
+              ? "Click anywhere on the canvas to place it."
+              : "Pick a kind, then click the canvas to place it."}
+          </p>
         </div>
+      ) : tool === "text" ? (
+        <p className="rounded-md border border-dashed px-2 py-1.5 text-xs text-muted-foreground">
+          Click anywhere on the canvas to add text.
+        </p>
+      ) : (
+        <p className="rounded-md border border-dashed px-2 py-1.5 text-xs text-muted-foreground">
+          Select the Node tool above to add a node.
+        </p>
       )}
 
       {!readOnly && selectedNodeIds.length >= 2 ? (
@@ -218,87 +487,143 @@ export function PropertiesPanel({
             />
           </label>
 
-          <label className="flex flex-col gap-1 text-xs">
+          <div className="flex flex-col gap-1 text-xs">
             Kind
-            <Select
+            <SearchableKindSelect
               disabled={readOnly}
               value={selectedNode.kind}
-              onValueChange={(value) => onUpdateNode(selectedNode.id, { kind: value as NodeKind })}
-            >
-              <SelectTrigger size="sm">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {NODE_KINDS.map((kind) => (
-                  <SelectItem key={kind} value={kind}>
-                    {NODE_KIND_LABELS[kind]}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </label>
-
-          <label className="flex flex-col gap-1 text-xs">
-            Shape
-            <Select
-              disabled={readOnly}
-              value={selectedNode.shape ?? "rounded"}
-              onValueChange={(value) => onUpdateNode(selectedNode.id, { shape: value as NodeShape })}
-            >
-              <SelectTrigger size="sm">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {SHAPES.map((s) => (
-                  <SelectItem key={s.value} value={s.value}>
-                    {s.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </label>
-
-          <label className="flex flex-col gap-1 text-xs">
-            Border style
-            <Select
-              disabled={readOnly}
-              value={selectedNode.borderStyle ?? "solid"}
-              onValueChange={(value) =>
-                onUpdateNode(selectedNode.id, { borderStyle: value as LineStyle })
-              }
-            >
-              <SelectTrigger size="sm">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {LINE_STYLES.map((s) => (
-                  <SelectItem key={s.value} value={s.value}>
-                    {s.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </label>
-
-          {!readOnly ? (
-            <label className="flex flex-col gap-1 text-xs">
-              Fill color
-              <FillColorPicker
-                value={selectedNode.fillColor ?? NODE_COLORS[selectedNode.kind]}
-                onCommit={(color) => onUpdateNode(selectedNode.id, { fillColor: color })}
-              />
-            </label>
-          ) : null}
-
-          <label className="flex flex-col gap-1 text-xs">
-            Description
-            <Textarea
-              disabled={readOnly}
-              className="min-h-[60px]"
-              value={selectedNode.description ?? ""}
-              onChange={(e) => onUpdateNode(selectedNode.id, { description: e.target.value })}
+              onChange={(kind) => onUpdateNode(selectedNode.id, { kind })}
             />
-          </label>
+          </div>
+
+          {selectedNode.kind !== "text" ? (
+            <>
+              <label className="flex flex-col gap-1 text-xs">
+                Shape
+                <Select
+                  disabled={readOnly}
+                  value={selectedNode.shape ?? "rounded"}
+                  onValueChange={(value) => onUpdateNode(selectedNode.id, { shape: value as NodeShape })}
+                >
+                  <SelectTrigger size="sm">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {SHAPES.map((s) => (
+                      <SelectItem key={s.value} value={s.value}>
+                        {s.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </label>
+
+              <label className="flex flex-col gap-1 text-xs">
+                Border style
+                <Select
+                  disabled={readOnly}
+                  value={selectedNode.borderStyle ?? "solid"}
+                  onValueChange={(value) =>
+                    onUpdateNode(selectedNode.id, { borderStyle: value as LineStyle })
+                  }
+                >
+                  <SelectTrigger size="sm">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {LINE_STYLES.map((s) => (
+                      <SelectItem key={s.value} value={s.value}>
+                        {s.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </label>
+
+              <div className="flex flex-col gap-1 text-xs">
+                Fill
+                <div className="flex gap-1.5">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant={selectedNode.filled === false ? "outline" : "secondary"}
+                    disabled={readOnly}
+                    className="flex-1"
+                    onClick={() => onUpdateNode(selectedNode.id, { filled: true })}
+                  >
+                    Filled
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant={selectedNode.filled === false ? "secondary" : "outline"}
+                    disabled={readOnly}
+                    className="flex-1"
+                    onClick={() => onUpdateNode(selectedNode.id, { filled: false })}
+                  >
+                    Outline
+                  </Button>
+                </div>
+              </div>
+
+              {!readOnly ? (
+                <label className="flex flex-col gap-1 text-xs">
+                  {selectedNode.filled === false ? "Outline color" : "Fill color"}
+                  <FillColorPicker
+                    value={selectedNode.fillColor ?? NODE_COLORS[selectedNode.kind]}
+                    onCommit={(color) => onUpdateNode(selectedNode.id, { fillColor: color })}
+                  />
+                </label>
+              ) : null}
+
+              <label className="flex flex-col gap-1 text-xs">
+                Description
+                <Textarea
+                  disabled={readOnly}
+                  className="min-h-[60px]"
+                  value={selectedNode.description ?? ""}
+                  onChange={(e) => onUpdateNode(selectedNode.id, { description: e.target.value })}
+                />
+              </label>
+            </>
+          ) : (
+            <>
+              {!readOnly ? (
+                <label className="flex flex-col gap-1 text-xs">
+                  Text color
+                  <FillColorPicker
+                    value={selectedNode.fillColor ?? NODE_COLORS[selectedNode.kind]}
+                    onCommit={(color) => onUpdateNode(selectedNode.id, { fillColor: color })}
+                  />
+                </label>
+              ) : null}
+
+              <label className="flex flex-col gap-1 text-xs">
+                Size
+                <Select
+                  disabled={readOnly}
+                  value={selectedNode.fontSize ?? "md"}
+                  onValueChange={(value) => onUpdateNode(selectedNode.id, { fontSize: value as TextSize })}
+                >
+                  <SelectTrigger size="sm">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {TEXT_SIZES.map((size) => (
+                      <SelectItem key={size} value={size}>
+                        {TEXT_SIZE_LABELS[size]}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </label>
+
+              <p className="text-[11px] text-muted-foreground">
+                Double-click the text on the canvas to edit it — or resize it like a node by
+                dragging its corner handles.
+              </p>
+            </>
+          )}
 
           {!readOnly ? (
             <div className="flex gap-2">
@@ -349,6 +674,57 @@ export function PropertiesPanel({
               </SelectContent>
             </Select>
           </label>
+
+          <div className="flex gap-2">
+            <label className="flex flex-1 flex-col gap-1 text-xs">
+              Source side
+              <Select
+                disabled={readOnly}
+                value={selectedEdge.sourceHandle ?? "auto"}
+                onValueChange={(value) =>
+                  onUpdateEdge(selectedEdge.id, {
+                    sourceHandle: value === "auto" ? undefined : (value as HandleSide),
+                  })
+                }
+              >
+                <SelectTrigger size="sm">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="auto">Auto</SelectItem>
+                  {HANDLE_SIDES.map((side) => (
+                    <SelectItem key={side} value={side}>
+                      {HANDLE_SIDE_LABELS[side]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </label>
+            <label className="flex flex-1 flex-col gap-1 text-xs">
+              Target side
+              <Select
+                disabled={readOnly}
+                value={selectedEdge.targetHandle ?? "auto"}
+                onValueChange={(value) =>
+                  onUpdateEdge(selectedEdge.id, {
+                    targetHandle: value === "auto" ? undefined : (value as HandleSide),
+                  })
+                }
+              >
+                <SelectTrigger size="sm">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="auto">Auto</SelectItem>
+                  {HANDLE_SIDES.map((side) => (
+                    <SelectItem key={side} value={side}>
+                      {HANDLE_SIDE_LABELS[side]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </label>
+          </div>
 
           <label className="flex flex-col gap-1 text-xs">
             Arrow style
@@ -405,7 +781,8 @@ export function PropertiesPanel({
       {!selectedNode && !selectedEdge ? (
         <p className="text-xs text-muted-foreground">
           Select a node or connection to edit its style. Shift-click to multi-select nodes for
-          grouping.
+          grouping. Double-click a node to drill into it — even an empty one, so you can add its
+          first child. Drag an edge&apos;s endpoint to reconnect it.
         </p>
       ) : null}
     </div>
