@@ -23,6 +23,11 @@ const diagramNodeSchema = new mongoose.Schema(
     shape: { type: String },
     fillColor: { type: String },
     borderStyle: { type: String },
+    // Mongoose strips any field not declared here on save — filled and
+    // fontSize were added to DiagramNodeData but never added here, so every
+    // save silently dropped them and reload always reverted to the default.
+    filled: { type: Boolean },
+    fontSize: { type: String },
   },
   { _id: false },
 );

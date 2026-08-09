@@ -354,6 +354,32 @@ export const NODE_KIND_CATEGORIES: Record<string, NodeKind[]> = {
  * nodes and to default new connections from them to the "flow" edge kind. */
 export const FLOW_NODE_KINDS: NodeKind[] = NODE_KIND_CATEGORIES.Flow;
 
+/** The kinds most diagrams reach for — pinned above everything else (even
+ * Recent) in the node picker so day-to-day use rarely needs to open a group. */
+export const COMMON_NODE_KINDS: NodeKind[] = [
+  "vm",
+  "container",
+  "database",
+  "load-balancer",
+  "api-gateway",
+  "user",
+  "group",
+  "text",
+];
+
+/**
+ * The 12 fine-grained categories above are too many to show fully expanded
+ * at once, so the picker collapses them into these broader groups (each
+ * still showing its member categories as sub-headers once expanded).
+ */
+export const NODE_KIND_SUPER_GROUPS: { label: string; categories: string[] }[] = [
+  { label: "Compute & Orchestration", categories: ["Compute", "Orchestration"] },
+  { label: "Network & Data", categories: ["Networking", "Storage & Data"] },
+  { label: "Ops & Security", categories: ["Security", "Monitoring", "CI/CD"] },
+  { label: "People & Messaging", categories: ["Users & External", "Messaging"] },
+  { label: "Structure & Flow", categories: ["Grouping", "Flow", "Annotation"] },
+];
+
 /** Shape a newly-added node of this kind should start with, overriding the
  * generic "rounded" default. Flowchart kinds get their conventional shapes. */
 export const DEFAULT_NODE_SHAPE: Partial<Record<NodeKind, NodeShape>> = {

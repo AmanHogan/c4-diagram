@@ -68,6 +68,24 @@ const GHOST_ID_PREFIX = "ghost:";
 
 const TEXT_NODE_DEFAULT_SIZE = { width: 160, height: 48 };
 
+const DEFAULT_FILLED_STORAGE_KEY = "c4-diagram:default-node-filled";
+
+/**
+ * The fill style (filled vs. outline) last picked via the properties panel,
+ * so newly placed nodes start out matching instead of always defaulting to
+ * filled. `undefined` (unset) renders as filled — see composite-node.tsx.
+ */
+function loadDefaultFilled(): boolean | undefined {
+  if (typeof window === "undefined") return undefined;
+  try {
+    const raw = window.localStorage.getItem(DEFAULT_FILLED_STORAGE_KEY);
+    if (raw === null) return undefined;
+    return JSON.parse(raw) === false ? false : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 interface DiagramApiResponse extends DiagramDocument {
   id: string;
   name: string;
@@ -1016,6 +1034,7 @@ function DiagramCanvasInner({ diagramId }: DiagramCanvasInnerProps): React.JSX.E
           position,
           shape: DEFAULT_NODE_SHAPE[pendingNodeKind] ?? "rounded",
           borderStyle: "solid",
+          filled: loadDefaultFilled(),
         };
         diagramRef.current = { ...diagramRef.current, nodes: [...diagramRef.current.nodes, newNode] };
         rebuildFlow(diagramRef.current, scopeIdRef.current, onToggleExpand, onDrillIn);
@@ -1038,6 +1057,15 @@ function DiagramCanvasInner({ diagramId }: DiagramCanvasInnerProps): React.JSX.E
   const onUpdateNode = useCallback(
     (id: string, patch: Partial<DiagramNodeData>) => {
       if (readOnlyRef.current) return;
+      // Remember the last-picked fill style so the next node you place
+      // starts out the same way, instead of always defaulting to filled.
+      if (patch.filled !== undefined) {
+        try {
+          window.localStorage.setItem(DEFAULT_FILLED_STORAGE_KEY, JSON.stringify(patch.filled));
+        } catch {
+          // localStorage unavailable — the default just won't persist.
+        }
+      }
       diagramRef.current = {
         ...diagramRef.current,
         nodes: diagramRef.current.nodes.map((n) => (n.id === id ? { ...n, ...patch } : n)),
@@ -1336,7 +1364,13 @@ function DiagramCanvasInner({ diagramId }: DiagramCanvasInnerProps): React.JSX.E
               ) : null}
               {isOwner ? <FolderPicker value={folderId} onChange={(id) => void handleChangeFolder(id)} /> : null}
             </div>
-            <DiagramToolbar tool={tool} onSelectTool={onSelectTool} readOnly={readOnly} />
+            <DiagramToolbar
+              tool={tool}
+              onSelectTool={onSelectTool}
+              readOnly={readOnly}
+              pendingNodeKind={pendingNodeKind}
+              onArmNodeKind={onArmNodeKind}
+            />
             <div className="flex items-center gap-1 rounded-lg border bg-sidebar/95 px-2 py-1.5 text-sm shadow-sm backdrop-blur-sm">
               <button
                 type="button"
@@ -1426,9 +1460,6 @@ function DiagramCanvasInner({ diagramId }: DiagramCanvasInnerProps): React.JSX.E
         onDeleteEdge={onDeleteEdge}
         onGroup={onGroup}
         onUngroup={onUngroup}
-        tool={tool}
-        pendingNodeKind={pendingNodeKind}
-        onArmNodeKind={onArmNodeKind}
       />
     </div>
   );
