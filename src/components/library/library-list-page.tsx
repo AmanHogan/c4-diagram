@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { Globe, Layers, Lock, Network, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { DeleteItemButton } from "@/components/library/delete-item-button";
 
 export interface LibraryItem {
   id: string;
@@ -22,6 +23,8 @@ interface LibraryListPageProps {
   createUrl: string;
   detailHref: (id: string) => string;
   emptyLabel: string;
+  /** Noun used in the delete confirmation dialog, e.g. "diagram". */
+  itemLabel: string;
 }
 
 /**
@@ -39,6 +42,7 @@ export function LibraryListPage({
   createUrl,
   detailHref,
   emptyLabel,
+  itemLabel,
 }: LibraryListPageProps): React.JSX.Element {
   const router = useRouter();
   const [items, setItems] = useState<LibraryItem[] | null>(null);
@@ -74,6 +78,11 @@ export function LibraryListPage({
     }
     const data = (await res.json()) as { id: string };
     router.push(detailHref(data.id));
+  };
+
+  const handleDelete = async (id: string): Promise<void> => {
+    await fetch(`${listUrl}/${id}`, { method: "DELETE" });
+    setItems((prev) => prev?.filter((item) => item.id !== id) ?? prev);
   };
 
   return (
@@ -119,10 +128,10 @@ export function LibraryListPage({
       ) : (
         <ul className="flex flex-col gap-3">
           {items.map((item) => (
-            <li key={item.id}>
+            <li key={item.id} className="group relative">
               <Link
                 href={detailHref(item.id)}
-                className="flex items-center justify-between gap-4 rounded-xl border-2 border-border/60 bg-card px-5 py-4 transition-all hover:-translate-y-0.5 hover:border-primary hover:shadow-lg"
+                className="flex items-center justify-between gap-4 rounded-xl border-2 border-border/60 bg-card px-5 py-4 pr-14 transition-all hover:-translate-y-0.5 hover:border-primary hover:shadow-lg"
               >
                 <div className="flex items-center gap-4 min-w-0">
                   <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-500/15 text-blue-400">
@@ -149,6 +158,13 @@ export function LibraryListPage({
                   {item.visibility === "public" ? "Public" : "Private"}
                 </span>
               </Link>
+              <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                <DeleteItemButton
+                  itemName={item.name}
+                  itemLabel={itemLabel}
+                  onDelete={() => handleDelete(item.id)}
+                />
+              </div>
             </li>
           ))}
         </ul>

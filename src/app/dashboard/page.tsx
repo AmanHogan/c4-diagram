@@ -99,7 +99,7 @@ export default function DashboardHome(): React.JSX.Element {
 
       <section className="rounded-2xl border-2 border-sidebar-border bg-sidebar/60 p-6">
         <div className="mb-5 flex items-center gap-3">
-          <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-500/15 text-amber-400">
+          <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-cyan-500/15 text-cyan-400">
             <Sparkles className="h-5 w-5" />
           </span>
           <h2 className="text-xl font-bold tracking-tight">Popular with other learners</h2>

@@ -3,8 +3,9 @@ import "./globals.css";
 import { Providers } from "./providers";
 
 export const metadata: Metadata = {
-  title: "C4 Diagram",
-  description: "Open Source, Free tool to visualize and track C4 model diagrams for software architecture.",
+  title: "Flowdeck",
+  description:
+    "Open source, free tool to build architecture diagrams and flashcard sets for studying and documenting software systems.",
 };
 
 /**

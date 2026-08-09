@@ -18,7 +18,7 @@ export default function LoginPage(): React.JSX.Element {
       <CardHeader>
         <CardTitle className="text-lg">Sign in</CardTitle>
         <CardDescription>
-          Welcome back to C-4 Diagram! Please enter your credentials to access your account.
+          Welcome back to Flowdeck! Please enter your credentials to access your account.
         </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">

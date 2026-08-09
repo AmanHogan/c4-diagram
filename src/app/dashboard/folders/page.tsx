@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { FolderClosed, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { DeleteItemButton } from "@/components/library/delete-item-button";
 
 interface FolderSummary {
   id: string;
@@ -45,6 +46,11 @@ export default function FoldersPage(): React.JSX.Element {
     });
     const data = (await res.json()) as { id: string };
     router.push(`/dashboard/folders/${data.id}`);
+  };
+
+  const handleDelete = async (id: string): Promise<void> => {
+    await fetch(`/api/folders/${id}`, { method: "DELETE" });
+    setFolders((prev) => prev?.filter((folder) => folder.id !== id) ?? prev);
   };
 
   return (
@@ -88,16 +94,24 @@ export default function FoldersPage(): React.JSX.Element {
       ) : (
         <ul className="flex flex-col gap-3">
           {folders.map((folder) => (
-            <li key={folder.id}>
+            <li key={folder.id} className="relative">
               <Link
                 href={`/dashboard/folders/${folder.id}`}
-                className="flex items-center gap-4 rounded-xl border-2 border-border/60 bg-card px-5 py-4 transition-all hover:-translate-y-0.5 hover:border-primary hover:shadow-lg"
+                className="flex items-center gap-4 rounded-xl border-2 border-border/60 bg-card px-5 py-4 pr-14 transition-all hover:-translate-y-0.5 hover:border-primary hover:shadow-lg"
               >
                 <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-500/15 text-amber-400">
                   <FolderClosed className="h-5 w-5" />
                 </span>
                 <span className="text-base font-semibold">{folder.name}</span>
               </Link>
+              <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                <DeleteItemButton
+                  itemName={folder.name}
+                  itemLabel="folder"
+                  extraNote="Diagrams and flashcard sets inside it are kept, just moved out of the folder."
+                  onDelete={() => handleDelete(folder.id)}
+                />
+              </div>
             </li>
           ))}
         </ul>

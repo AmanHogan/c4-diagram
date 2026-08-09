@@ -4,12 +4,13 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 
-const DEFAULTS = { accent: "#e8e8e8", background: "#1f2121", card: "#2a2c2c" };
+const DEFAULTS = { accent: "#e8e8e8", background: "#1f2121", card: "#2a2c2c", sidebar: "#171818" };
 
 interface ThemePrefs {
   accent?: string;
   background?: string;
   card?: string;
+  sidebar?: string;
 }
 
 function luminance(hex: string): number {
@@ -17,6 +18,17 @@ function luminance(hex: string): number {
   if (h.length < 6) return 1;
   const [r, g, b] = [0, 2, 4].map((i) => parseInt(h.slice(i, i + 2), 16) / 255);
   return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
+
+/** Mixes a hex color toward white or black by `amount` (0-1), used to derive
+ * the sidebar's hover/border shades from its one base color. */
+function shade(hex: string, amount: number, towardWhite: boolean): string {
+  const h = hex.replace("#", "");
+  if (h.length < 6) return hex;
+  const [r, g, b] = [0, 2, 4].map((i) => parseInt(h.slice(i, i + 2), 16));
+  const mix = (c: number): number =>
+    Math.round(towardWhite ? c + (255 - c) * amount : c * (1 - amount));
+  return `#${[r, g, b].map((c) => mix(c).toString(16).padStart(2, "0")).join("")}`;
 }
 
 function applyPreview(theme: ThemePrefs): void {
@@ -29,6 +41,14 @@ function applyPreview(theme: ThemePrefs): void {
   root.setProperty("--foreground", luminance(theme.background || DEFAULTS.background) > 0.5 ? "#0a0a0a" : "#f5f5f5");
   root.setProperty("--card", theme.card || DEFAULTS.card);
   root.setProperty("--card-foreground", luminance(theme.card || DEFAULTS.card) > 0.5 ? "#0a0a0a" : "#f5f5f5");
+
+  const sidebar = theme.sidebar || DEFAULTS.sidebar;
+  const sidebarLight = luminance(sidebar) > 0.5;
+  root.setProperty("--sidebar", sidebar);
+  root.setProperty("--sidebar-foreground", sidebarLight ? "#0a0a0a" : "#f5f5f5");
+  root.setProperty("--sidebar-accent", shade(sidebar, 0.08, !sidebarLight));
+  root.setProperty("--sidebar-accent-foreground", sidebarLight ? "#0a0a0a" : "#f5f5f5");
+  root.setProperty("--sidebar-border", shade(sidebar, 0.15, !sidebarLight));
 }
 
 /**
@@ -131,6 +151,21 @@ export function ThemeSection(): React.JSX.Element {
             type="color"
             value={theme.card ?? DEFAULTS.card}
             onChange={(e) => setTheme((t) => ({ ...t, card: e.target.value }))}
+            className="h-9 w-16 cursor-pointer rounded-md border border-input bg-transparent"
+          />
+        </label>
+
+        <label className="flex items-center justify-between gap-3 rounded-lg border bg-card p-3">
+          <div>
+            <p className="text-sm font-medium">Sidebar &amp; top nav color</p>
+            <p className="text-xs text-muted-foreground">
+              The nav rail on the left and the header bar — they always match
+            </p>
+          </div>
+          <input
+            type="color"
+            value={theme.sidebar ?? DEFAULTS.sidebar}
+            onChange={(e) => setTheme((t) => ({ ...t, sidebar: e.target.value }))}
             className="h-9 w-16 cursor-pointer rounded-md border border-input bg-transparent"
           />
         </label>

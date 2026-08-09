@@ -15,6 +15,7 @@ export default function FlashcardsPage(): React.JSX.Element {
       createUrl="/api/flashcards"
       detailHref={(id) => `/dashboard/flashcards/${id}`}
       emptyLabel="No flashcard sets yet — create one to get started."
+      itemLabel="flashcard set"
     />
   );
 }

@@ -1,0 +1,42 @@
+<svg viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <filter id="softShadowD" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="6" stdDeviation="10" flood-color="#000000" flood-opacity="0.5"/>
+    </filter>
+  </defs>
+
+  <rect x="0" y="0" width="512" height="512" rx="112" fill="#14162B"/>
+
+  <!-- Back flashcard -->
+  <g transform="translate(256 268) rotate(-6)">
+    <rect x="-130" y="-90" width="260" height="180" rx="20" fill="#23264A"/>
+  </g>
+
+  <!-- Front flashcard -->
+  <g filter="url(#softShadowD)">
+    <rect x="126" y="150" width="260" height="180" rx="20" fill="#1D1F3B"/>
+  </g>
+
+  <!-- Excalidraw-style hand-drawn diagram -->
+  <g fill="none" stroke="#B9C0FF" stroke-width="5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M156,196 Q154,192 160,191 L214,189 Q220,189 219,196 L221,232 Q222,238 215,238 L161,240 Q155,240 156,233 Z"/>
+    <path d="M296,220 Q294,216 300,215 L352,214 Q358,214 357,221 L359,256 Q360,262 353,262 L299,264 Q293,264 294,257 Z"/>
+    <path d="M221,215 Q260,208 293,235" stroke="#FF9C5F"/>
+    <path d="M279,233 L293,235 L288,222" stroke="#FF9C5F"/>
+  </g>
+  <circle cx="188" cy="214" r="5" fill="#7C8CFF"/>
+  <circle cx="327" cy="238" r="5" fill="#3FE0A5"/>
+
+  <!-- Sparkle / learning mark -->
+  <g transform="translate(352 172)">
+    <circle r="10" fill="#FFD873"/>
+    <g stroke="#FFD873" stroke-width="4" stroke-linecap="round">
+      <line x1="0" y1="-18" x2="0" y2="-24"/>
+      <line x1="14" y1="-9" x2="19" y2="-12"/>
+      <line x1="-14" y1="-9" x2="-19" y2="-12"/>
+    </g>
+  </g>
+
+  <!-- Card title rule -->
+  <rect x="150" y="292" width="120" height="8" rx="4" fill="#2A2D52"/>
+</svg>

@@ -1,0 +1,50 @@
+<svg viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bgC" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#4F6BFF"/>
+      <stop offset="100%" stop-color="#2B3EDB"/>
+    </linearGradient>
+    <linearGradient id="cardBackC" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#DCE3FF"/>
+      <stop offset="100%" stop-color="#C3CDFF"/>
+    </linearGradient>
+    <filter id="softShadowC" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="6" stdDeviation="8" flood-color="#1A2472" flood-opacity="0.25"/>
+    </filter>
+  </defs>
+
+  <rect x="0" y="0" width="512" height="512" rx="112" fill="url(#bgC)"/>
+
+  <!-- Back flashcard -->
+  <g transform="translate(256 268) rotate(-6)">
+    <rect x="-130" y="-90" width="260" height="180" rx="20" fill="url(#cardBackC)"/>
+  </g>
+
+  <!-- Front flashcard -->
+  <g filter="url(#softShadowC)">
+    <rect x="126" y="150" width="260" height="180" rx="20" fill="#FFFFFF"/>
+  </g>
+
+  <!-- Excalidraw-style hand-drawn diagram: two boxes + curved connector -->
+  <g fill="none" stroke="#2B3EDB" stroke-width="5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M156,196 Q154,192 160,191 L214,189 Q220,189 219,196 L221,232 Q222,238 215,238 L161,240 Q155,240 156,233 Z"/>
+    <path d="M296,220 Q294,216 300,215 L352,214 Q358,214 357,221 L359,256 Q360,262 353,262 L299,264 Q293,264 294,257 Z"/>
+    <path d="M221,215 Q260,208 293,235" stroke="#FF8A4C"/>
+    <path d="M279,233 L293,235 L288,222" stroke="#FF8A4C"/>
+  </g>
+  <circle cx="188" cy="214" r="5" fill="#4F6BFF"/>
+  <circle cx="327" cy="238" r="5" fill="#2FCB8F"/>
+
+  <!-- Sparkle / learning mark -->
+  <g transform="translate(352 172)">
+    <circle r="10" fill="#FFC94C"/>
+    <g stroke="#FFC94C" stroke-width="4" stroke-linecap="round">
+      <line x1="0" y1="-18" x2="0" y2="-24"/>
+      <line x1="14" y1="-9" x2="19" y2="-12"/>
+      <line x1="-14" y1="-9" x2="-19" y2="-12"/>
+    </g>
+  </g>
+
+  <!-- Card title rule -->
+  <rect x="150" y="292" width="120" height="8" rx="4" fill="#E4E8FF"/>
+</svg>

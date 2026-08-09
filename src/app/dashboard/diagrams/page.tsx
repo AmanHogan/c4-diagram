@@ -15,6 +15,7 @@ export default function DiagramsPage(): React.JSX.Element {
       createUrl="/api/diagrams"
       detailHref={(id) => `/dashboard/diagram/${id}`}
       emptyLabel="No diagrams yet — create one to get started."
+      itemLabel="diagram"
     />
   );
 }

@@ -4,7 +4,6 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   FolderClosed,
-  LayoutDashboard,
   Layers,
   LogOut,
   Network,
@@ -94,16 +93,7 @@ export function HeaderBar({ userId, userName }: HeaderBarProps): React.JSX.Eleme
   const initial = userName.charAt(0).toUpperCase() || "?";
 
   return (
-    <header className="flex h-16 shrink-0 items-center gap-4 border-b border-border bg-sidebar px-5">
-      <button
-        type="button"
-        title="Dashboard"
-        onClick={() => router.push("/dashboard")}
-        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-      >
-        <LayoutDashboard className="h-5 w-5" />
-      </button>
-
+    <header className="flex h-16 shrink-0 items-center gap-4 bg-sidebar px-5">
       <form onSubmit={handleSearch} className="mx-auto w-full max-w-lg">
         <div className="relative">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />

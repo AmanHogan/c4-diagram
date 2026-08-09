@@ -7,6 +7,7 @@ interface ThemePrefs {
   accent?: string;
   background?: string;
   card?: string;
+  sidebar?: string;
 }
 
 /**
@@ -25,7 +26,7 @@ export async function GET(): Promise<NextResponse> {
 
 /**
  * Save the current user's theme color overrides (accent / background /
- * card). Passing an empty object for a field clears that override.
+ * card / sidebar). Passing an empty object for a field clears that override.
  */
 export async function PUT(request: Request): Promise<NextResponse> {
   const userId = await requireUserId();
