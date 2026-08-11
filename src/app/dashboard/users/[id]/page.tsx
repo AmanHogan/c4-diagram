@@ -5,6 +5,7 @@ import Link from "next/link";
 import { use } from "react";
 import { Layers, Network } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useDelayedLoading } from "@/lib/use-delayed-loading";
 
 interface UserProfile {
   id: string;
@@ -23,7 +24,7 @@ interface UserProfilePageProps {
  * @param props Route params containing the user's id.
  * @returns The rendered page.
  */
-export default function UserProfilePage({ params }: UserProfilePageProps): React.JSX.Element {
+export default function UserProfilePage({ params }: UserProfilePageProps): React.JSX.Element | null {
   const { id } = use(params);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [notFound, setNotFound] = useState(false);
@@ -45,11 +46,25 @@ export default function UserProfilePage({ params }: UserProfilePageProps): React
     };
   }, [id]);
 
+  const showSkeleton = useDelayedLoading(!profile && !notFound);
+
+  if (showSkeleton) {
+    return (
+      <div className="mx-auto max-w-2xl">
+        <Skeleton className="mb-6 h-8 w-48" />
+        <div className="flex flex-col gap-2">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <Skeleton key={i} className="h-12 w-full rounded-lg" />
+          ))}
+        </div>
+      </div>
+    );
+  }
   if (notFound) {
     return <div className="mx-auto max-w-2xl text-sm text-muted-foreground">User not found.</div>;
   }
   if (!profile) {
-    return <div className="mx-auto max-w-2xl text-sm text-muted-foreground">Loading…</div>;
+    return null;
   }
 
   return (

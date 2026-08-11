@@ -343,7 +343,7 @@ function ProgressRing({
  * @param props Contains the flashcard set's id.
  * @returns The rendered page.
  */
-export function FlashcardSetView({ setId }: FlashcardSetViewProps): React.JSX.Element {
+export function FlashcardSetView({ setId }: FlashcardSetViewProps): React.JSX.Element | null {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);

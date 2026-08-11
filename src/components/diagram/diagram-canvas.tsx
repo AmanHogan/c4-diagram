@@ -31,6 +31,7 @@ import { CompositeNode, type CompositeNodeData } from "@/components/diagram/comp
 import { DiagramToolbar, type DiagramTool } from "@/components/diagram/diagram-toolbar";
 import { PropertiesPanel } from "@/components/diagram/properties-panel";
 import { EditDetailsButton } from "@/components/diagram/edit-details-button";
+import { useDelayedLoading } from "@/lib/use-delayed-loading";
 import {
   DEFAULT_NODE_KIND,
   EDGE_STYLES,
@@ -501,7 +502,7 @@ interface DiagramCanvasInnerProps {
  * @param props Contains the diagram's id.
  * @returns The rendered canvas.
  */
-function DiagramCanvasInner({ diagramId }: DiagramCanvasInnerProps): React.JSX.Element {
+function DiagramCanvasInner({ diagramId }: DiagramCanvasInnerProps): React.JSX.Element | null {
   const router = useRouter();
   const diagramRef = useRef<DiagramDocument>({ nodes: [], edges: [] });
   const [nodes, setNodes, onNodesChange] = useNodesState<Node<CompositeNodeData>>([]);
@@ -1325,16 +1326,13 @@ function DiagramCanvasInner({ diagramId }: DiagramCanvasInnerProps): React.JSX.E
   }, [setNodes]);
 
   const proOptions = useMemo(() => ({ hideAttribution: true }), []);
+  const showLoadingSkeleton = useDelayedLoading(loading);
 
-  if (notFound) {
-    return (
-      <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
-        This diagram doesn&apos;t exist or isn&apos;t public.
-      </div>
-    );
-  }
-
-  if (loading) {
+  // Skeleton takes priority while due to be visible (including its
+  // minimum-display-time tail after loading actually finishes) — see
+  // useDelayedLoading. Below the skeleton, a fast load renders nothing for
+  // a beat rather than flashing a skeleton in and out.
+  if (showLoadingSkeleton) {
     return (
       <div className="relative h-full w-full overflow-hidden">
         <div className="absolute inset-x-3 top-3 flex items-center gap-2">
@@ -1344,6 +1342,17 @@ function DiagramCanvasInner({ diagramId }: DiagramCanvasInnerProps): React.JSX.E
         <Skeleton className="absolute left-[12%] top-[30%] h-28 w-52 rounded-xl" />
         <Skeleton className="absolute left-[42%] top-[48%] h-24 w-44 rounded-xl" />
         <Skeleton className="absolute left-[65%] top-[24%] h-20 w-40 rounded-xl" />
+      </div>
+    );
+  }
+  if (loading) {
+    return null;
+  }
+
+  if (notFound) {
+    return (
+      <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
+        This diagram doesn&apos;t exist or isn&apos;t public.
       </div>
     );
   }

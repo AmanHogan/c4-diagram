@@ -4,6 +4,7 @@ import { use, useEffect, useState } from "react";
 import Link from "next/link";
 import { Globe, Layers, Lock, Network } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useDelayedLoading } from "@/lib/use-delayed-loading";
 
 interface FolderItem {
   id: string;
@@ -29,7 +30,7 @@ interface FolderPageProps {
  * @param props Route params containing the folder's id.
  * @returns The rendered page.
  */
-export default function FolderPage({ params }: FolderPageProps): React.JSX.Element {
+export default function FolderPage({ params }: FolderPageProps): React.JSX.Element | null {
   const { id } = use(params);
   const [folder, setFolder] = useState<FolderDetail | null>(null);
   const [notFound, setNotFound] = useState(false);
@@ -51,10 +52,9 @@ export default function FolderPage({ params }: FolderPageProps): React.JSX.Eleme
     };
   }, [id]);
 
-  if (notFound) {
-    return <div className="mx-auto max-w-2xl text-sm text-muted-foreground">Folder not found.</div>;
-  }
-  if (!folder) {
+  const showSkeleton = useDelayedLoading(!folder && !notFound);
+
+  if (showSkeleton) {
     return (
       <div className="mx-auto max-w-2xl">
         <Skeleton className="mb-6 h-8 w-48" />
@@ -65,6 +65,12 @@ export default function FolderPage({ params }: FolderPageProps): React.JSX.Eleme
         </div>
       </div>
     );
+  }
+  if (notFound) {
+    return <div className="mx-auto max-w-2xl text-sm text-muted-foreground">Folder not found.</div>;
+  }
+  if (!folder) {
+    return null;
   }
 
   const isEmpty = folder.diagrams.length === 0 && folder.flashcardSets.length === 0;
