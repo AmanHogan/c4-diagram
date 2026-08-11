@@ -1,121 +1,200 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import Link from "next/link";
-import { Compass, Layers, Network, Sparkles } from "lucide-react";
+import { useCallback, useRef, useState } from "react";
+import { BookOpen, Workflow } from "lucide-react";
+import { Marquee } from "@/components/ui/marquee";
+import { StaticCarousel } from "@/components/dashboard/static-carousel";
+import { PosterCard, VerticalEmptyCard } from "@/components/dashboard/vertical-item-card";
+import { PosterCardSkeletonRow } from "@/components/dashboard/poster-card-skeleton";
+import { useRefetchOnFocus } from "@/lib/use-refetch-on-focus";
+import { useDelayedLoading } from "@/lib/use-delayed-loading";
+import { iconFor, itemHref, type DashboardItem } from "@/lib/dashboard-item";
 
-interface DashboardItem {
-  type: "diagram" | "flashcard-set";
+interface LibraryItem {
   id: string;
   name: string;
-  ownerName?: string;
+  description?: string;
+  visibility: "public" | "private";
   updatedAt: string;
+  cardCount?: number;
+  /** First few flashcard fronts, for the poster card's preview list. */
+  termsPreview?: string[];
 }
 
-function itemHref(item: DashboardItem): string {
-  return item.type === "diagram" ? `/dashboard/diagram/${item.id}` : `/dashboard/flashcards/${item.id}`;
-}
+/** Minimum row length before an empty/CTA card gets appended to pad it out
+ * — a carousel with 1 real card looks broken, not "not much here yet". */
+const MIN_CAROUSEL_LENGTH = 3;
 
 /**
- * A card linking to a recent or popular diagram/flashcard set.
- * @param props The item to render and whether to show its owner's name.
- * @returns The rendered card.
+ * Section wrapper for a dashboard carousel: a big centered gradient title
+ * (white-to-grey fade, no icon — a full sentence, same treatment as a
+ * marketing-page section heading) plus a muted descriptive line under it,
+ * sitting directly on the page background. No bounding box of its own;
+ * nothing here is a different shade than the page itself.
  */
-function ItemCard({ item, showOwner }: { item: DashboardItem; showOwner: boolean }): React.JSX.Element {
-  const Icon = item.type === "diagram" ? Network : Layers;
+function DashboardSection({
+  title,
+  description,
+  children,
+}: {
+  /** A full sentence, not a short label — e.g. "Pick up where you left off." */
+  title: string;
+  description: string;
+  children: React.ReactNode;
+}): React.JSX.Element {
   return (
-    <Link
-      href={itemHref(item)}
-      className="flex items-center gap-4 rounded-xl border-2 border-border/60 bg-card p-5 transition-all hover:-translate-y-0.5 hover:border-primary hover:shadow-lg"
-    >
-      <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
-        <Icon className="h-5 w-5" />
-      </span>
-      <div className="min-w-0">
-        <p className="truncate text-base font-semibold">{item.name}</p>
-        <p className="truncate text-sm text-muted-foreground">
-          {showOwner && item.ownerName ? `by ${item.ownerName} · ` : ""}
-          {new Date(item.updatedAt).toLocaleDateString()}
-        </p>
+    <section className="mb-14">
+      <div className="mb-6 text-center">
+        <h2 className="from-foreground to-muted-foreground bg-gradient-to-b bg-clip-text text-2xl font-extrabold tracking-tight text-transparent sm:text-3xl">
+          {title}
+        </h2>
+        <p className="text-muted-foreground mt-2 text-base">{description}</p>
       </div>
-    </Link>
+      {children}
+    </section>
   );
 }
 
 /**
- * Dashboard landing page: "Jump back in" (the user's own recent items,
- * private) and "Popular with other learners" (public items from anyone),
- * each in its own clearly separated, darker-outlined section.
+ * Dashboard landing page, top to bottom: "Jump back in", a static
+ * flashcards carousel, a static diagrams carousel (all three padded out to
+ * a minimum length with a "create one" card so they never look sparse),
+ * and finally the auto-scrolling "Popular with other learners" marquee —
+ * same card size/shape as the static carousels, just animated and slower.
  * @returns The rendered dashboard home.
  */
 export default function DashboardHome(): React.JSX.Element {
   const [recent, setRecent] = useState<DashboardItem[] | null>(null);
   const [popular, setPopular] = useState<DashboardItem[] | null>(null);
+  const [flashcardSets, setFlashcardSets] = useState<LibraryItem[] | null>(null);
+  const [diagrams, setDiagrams] = useState<LibraryItem[] | null>(null);
+  const requestIdRef = useRef(0);
 
-  useEffect(() => {
-    let cancelled = false;
-    const load = async (): Promise<void> => {
-      const res = await fetch("/api/dashboard");
-      const data = (await res.json()) as { recent: DashboardItem[]; popular: DashboardItem[] };
-      if (!cancelled) {
-        setRecent(data.recent);
-        setPopular(data.popular);
-      }
-    };
-    void load();
-    return (): void => {
-      cancelled = true;
-    };
+  // Refetches on mount AND whenever the tab regains focus/visibility — not
+  // just once — so flipping something to public elsewhere and coming back
+  // shows up without a manual hard reload.
+  const load = useCallback(async (): Promise<void> => {
+    const requestId = ++requestIdRef.current;
+    const [dashboardRes, flashcardsRes, diagramsRes] = await Promise.all([
+      fetch("/api/dashboard"),
+      fetch("/api/flashcards"),
+      fetch("/api/diagrams"),
+    ]);
+    const dashboardData = (await dashboardRes.json()) as { recent: DashboardItem[]; popular: DashboardItem[] };
+    const flashcardsData = (await flashcardsRes.json()) as LibraryItem[];
+    const diagramsData = (await diagramsRes.json()) as LibraryItem[];
+    if (requestIdRef.current === requestId) {
+      setRecent(dashboardData.recent);
+      setPopular(dashboardData.popular);
+      setFlashcardSets(flashcardsData);
+      setDiagrams(diagramsData);
+    }
   }, []);
+  useRefetchOnFocus(load);
+  const showSkeleton = useDelayedLoading(!recent);
 
   return (
-    <div className="mx-auto max-w-4xl">
-      <h1 className="mb-1 text-3xl font-bold">Dashboard</h1>
-      <p className="mb-8 text-base text-muted-foreground">
-        Pick up where you left off, or see what other learners are studying.
-      </p>
-
-      <section className="mb-6 rounded-2xl border-2 border-sidebar-border bg-sidebar/60 p-6">
-        <div className="mb-5 flex items-center gap-3">
-          <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-500/15 text-blue-400">
-            <Compass className="h-5 w-5" />
-          </span>
-          <h2 className="text-xl font-bold tracking-tight">Jump back in</h2>
-        </div>
-        {!recent ? (
-          <p className="text-base text-muted-foreground">Loading…</p>
-        ) : recent.length === 0 ? (
-          <p className="text-base text-muted-foreground">
-            Nothing yet — create a diagram or flashcard set to get started.
-          </p>
-        ) : (
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            {recent.map((item) => (
-              <ItemCard key={`${item.type}-${item.id}`} item={item} showOwner={false} />
+    <div className="mx-auto max-w-5xl">
+      <DashboardSection
+        title="Pick up where you left off."
+        description="The diagrams and flashcard sets you've opened most recently."
+      >
+        {showSkeleton ? (
+          <PosterCardSkeletonRow />
+        ) : !recent ? null : (
+          <StaticCarousel>
+            {recent.slice(0, 8).map((item) => (
+              <PosterCard
+                key={`${item.type}-${item.id}`}
+                href={itemHref(item)}
+                icon={iconFor(item.type)}
+                title={item.name}
+                meta={new Date(item.updatedAt).toLocaleDateString()}
+              />
             ))}
-          </div>
+            {recent.length < MIN_CAROUSEL_LENGTH ? (
+              <VerticalEmptyCard href="/dashboard/diagrams" label="Create a diagram or flashcard set" />
+            ) : null}
+          </StaticCarousel>
         )}
-      </section>
+      </DashboardSection>
 
-      <section className="rounded-2xl border-2 border-sidebar-border bg-sidebar/60 p-6">
-        <div className="mb-5 flex items-center gap-3">
-          <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-cyan-500/15 text-cyan-400">
-            <Sparkles className="h-5 w-5" />
-          </span>
-          <h2 className="text-xl font-bold tracking-tight">Popular with other learners</h2>
-        </div>
-        {!popular ? (
-          <p className="text-base text-muted-foreground">Loading…</p>
-        ) : popular.length === 0 ? (
-          <p className="text-base text-muted-foreground">No public sets or diagrams yet.</p>
+      <DashboardSection title="Browse your flashcard sets." description="Every set you've created, ready to study.">
+        {showSkeleton ? (
+          <PosterCardSkeletonRow />
+        ) : !flashcardSets ? null : (
+          <StaticCarousel>
+            {flashcardSets.slice(0, 8).map((set) => (
+              <PosterCard
+                key={set.id}
+                href={`/dashboard/flashcards/${set.id}`}
+                icon={BookOpen}
+                title={set.name}
+                description={set.description}
+                items={set.termsPreview}
+                meta={set.cardCount !== undefined ? `${set.cardCount} cards` : undefined}
+              />
+            ))}
+            {flashcardSets.length < MIN_CAROUSEL_LENGTH ? (
+              <VerticalEmptyCard href="/dashboard/flashcards" label="Create a flashcard set" />
+            ) : null}
+          </StaticCarousel>
+        )}
+      </DashboardSection>
+
+      <DashboardSection
+        title="Browse your architecture diagrams."
+        description="Every diagram you've built, ready to open."
+      >
+        {showSkeleton ? (
+          <PosterCardSkeletonRow />
+        ) : !diagrams ? null : (
+          <StaticCarousel>
+            {diagrams.slice(0, 8).map((diagram) => (
+              <PosterCard
+                key={diagram.id}
+                href={`/dashboard/diagram/${diagram.id}`}
+                icon={Workflow}
+                title={diagram.name}
+                description={diagram.description}
+                meta={new Date(diagram.updatedAt).toLocaleDateString()}
+              />
+            ))}
+            {diagrams.length < MIN_CAROUSEL_LENGTH ? (
+              <VerticalEmptyCard href="/dashboard/diagrams" label="Create a diagram" />
+            ) : null}
+          </StaticCarousel>
+        )}
+      </DashboardSection>
+
+      <DashboardSection
+        title="See what other learners are exploring."
+        description="Public diagrams and flashcard sets from across Flowdeck."
+      >
+        {showSkeleton ? (
+          <PosterCardSkeletonRow />
+        ) : !popular ? null : popular.length === 0 ? (
+          <p className="text-muted-foreground text-center text-base">No public sets or diagrams yet.</p>
         ) : (
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          // Same card size/shape as the static carousels above, just
+          // animated — the only visual difference should be the motion.
+          // Slower duration (default is 32s) so it reads as ambient rather
+          // than busy.
+          <Marquee pauseOnHover className="[--duration:70s]">
             {popular.map((item) => (
-              <ItemCard key={`${item.type}-${item.id}`} item={item} showOwner />
+              <PosterCard
+                key={`${item.type}-${item.id}`}
+                href={itemHref(item)}
+                icon={iconFor(item.type)}
+                title={item.name}
+                meta={
+                  item.ownerName ? `by ${item.ownerName} · ${new Date(item.updatedAt).toLocaleDateString()}` : undefined
+                }
+              />
             ))}
-          </div>
+          </Marquee>
         )}
-      </section>
+      </DashboardSection>
     </div>
   );
 }

@@ -1,11 +1,10 @@
 import Link from "next/link";
 import { ExternalLink } from "lucide-react";
 import { auth } from "@/lib/auth";
-import { ThemeSection } from "@/components/theme/theme-section";
 
 /**
- * Settings page: account info (visible only to you) plus theme
- * customization. Reached via the avatar menu, not the main sidebar.
+ * Settings page: account info, visible only to you. Reached via the avatar
+ * menu in the top nav.
  * @returns The rendered page.
  */
 export default async function SettingsPage(): Promise<React.JSX.Element> {
@@ -36,10 +35,6 @@ export default async function SettingsPage(): Promise<React.JSX.Element> {
         >
           View your public profile <ExternalLink className="h-4 w-4" />
         </Link>
-      </section>
-
-      <section>
-        <ThemeSection />
       </section>
     </div>
   );

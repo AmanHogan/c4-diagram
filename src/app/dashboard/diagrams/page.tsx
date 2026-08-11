@@ -9,8 +9,8 @@ import { LibraryListPage } from "@/components/library/library-list-page";
 export default function DiagramsPage(): React.JSX.Element {
   return (
     <LibraryListPage
-      title="Diagrams"
-      description="Expandable, connectable node diagrams."
+      title="Your architecture diagrams."
+      description="Every diagram you've built, ready to open."
       listUrl="/api/diagrams"
       createUrl="/api/diagrams"
       detailHref={(id) => `/dashboard/diagram/${id}`}

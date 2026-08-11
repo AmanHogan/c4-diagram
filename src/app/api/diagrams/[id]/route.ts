@@ -39,6 +39,7 @@ export async function GET(_request: Request, { params }: RouteParams): Promise<N
   return NextResponse.json({
     id: diagram._id.toString(),
     name: diagram.name,
+    description: diagram.description,
     visibility: diagram.visibility,
     folderId: diagram.folderId,
     nodes: diagram.nodes,
@@ -66,12 +67,14 @@ export async function PUT(request: Request, { params }: RouteParams): Promise<Ne
 
   const body = (await request.json()) as Partial<DiagramDocument> & {
     name?: string;
+    description?: string;
     visibility?: "public" | "private";
     folderId?: string | null;
   };
   if (body.nodes) diagram.nodes = body.nodes as typeof diagram.nodes;
   if (body.edges) diagram.edges = body.edges as typeof diagram.edges;
   if (body.name) diagram.name = body.name;
+  if (body.description !== undefined) diagram.description = body.description;
   if (body.visibility) diagram.visibility = body.visibility;
   if (body.folderId !== undefined) diagram.folderId = body.folderId as never;
   diagram.lastOpenedAt = new Date();

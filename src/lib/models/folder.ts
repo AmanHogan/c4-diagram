@@ -3,6 +3,7 @@ import mongoose, { type Model, type InferSchemaType } from "mongoose";
 const folderSchema = new mongoose.Schema(
   {
     name: { type: String, required: true, trim: true },
+    description: { type: String },
     ownerId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
   },
   { timestamps: true },

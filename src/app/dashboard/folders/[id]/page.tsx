@@ -3,6 +3,7 @@
 import { use, useEffect, useState } from "react";
 import Link from "next/link";
 import { Globe, Layers, Lock, Network } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface FolderItem {
   id: string;
@@ -54,7 +55,16 @@ export default function FolderPage({ params }: FolderPageProps): React.JSX.Eleme
     return <div className="mx-auto max-w-2xl text-sm text-muted-foreground">Folder not found.</div>;
   }
   if (!folder) {
-    return <div className="mx-auto max-w-2xl text-sm text-muted-foreground">Loading…</div>;
+    return (
+      <div className="mx-auto max-w-2xl">
+        <Skeleton className="mb-6 h-8 w-48" />
+        <div className="flex flex-col gap-2">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <Skeleton key={i} className="h-12 w-full rounded-lg" />
+          ))}
+        </div>
+      </div>
+    );
   }
 
   const isEmpty = folder.diagrams.length === 0 && folder.flashcardSets.length === 0;

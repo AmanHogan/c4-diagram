@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   CheckCircle2,
@@ -39,9 +39,11 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Skeleton } from "@/components/ui/skeleton";
 import { FolderPicker } from "@/components/library/folder-picker";
 import { MarkdownContent } from "@/components/flashcards/markdown-content";
 import { cn } from "@/lib/utils";
+import { useDelayedLoading } from "@/lib/use-delayed-loading";
 
 interface Flashcard {
   id: string;
@@ -144,6 +146,29 @@ function MarkdownTextarea({ value, onChange, placeholder, disabled, className }:
       onKeyDown={handleKeyDown}
       className={className}
     />
+  );
+}
+
+/**
+ * Thin hover strip between two cards (and before the first/after the last)
+ * with a "+" that fades in on hover — click to insert a new blank card right
+ * at that position, Notion-style, instead of always appending at the end.
+ * @param props The insert callback for this gap's position.
+ * @returns The rendered hover strip, or null when not editable.
+ */
+function InsertCardGap({ onInsert }: { onInsert: () => void }): React.JSX.Element {
+  return (
+    <div className="group/gap relative -my-2 flex h-4 items-center">
+      <div className="h-px w-full bg-transparent transition-colors group-hover/gap:bg-primary/30" />
+      <button
+        type="button"
+        title="Insert a card here"
+        onClick={onInsert}
+        className="absolute left-1/2 top-1/2 flex h-6 w-6 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-primary/50 bg-card text-primary opacity-0 shadow-sm transition-opacity group-hover/gap:opacity-100 hover:bg-primary hover:text-primary-foreground"
+      >
+        <Plus className="h-3.5 w-3.5" />
+      </button>
+    </div>
   );
 }
 
@@ -568,6 +593,14 @@ export function FlashcardSetView({ setId }: FlashcardSetViewProps): React.JSX.El
     setCards((prev) => prev.filter((_, idx) => idx !== index));
   }, []);
 
+  const handleInsertCardAt = useCallback((index: number) => {
+    setCards((prev) => {
+      const next = [...prev];
+      next.splice(index, 0, newCard());
+      return next;
+    });
+  }, []);
+
   const progressCounts = useMemo(() => {
     let known = 0;
     let learning = 0;
@@ -618,15 +651,40 @@ export function FlashcardSetView({ setId }: FlashcardSetViewProps): React.JSX.El
     };
   }, [mode, studyComplete, cards, studyOrder, studyIndex, markAndAdvance]);
 
+  const showLoadingSkeleton = useDelayedLoading(loading);
+
+  // Skeleton takes priority over everything else while it's due to be
+  // visible (including the tail end of its minimum-display-time after
+  // loading has actually finished) — see useDelayedLoading.
+  if (showLoadingSkeleton) {
+    return (
+      <div className="mx-auto max-w-3xl py-4">
+        <Skeleton className="mb-3 h-9 w-72" />
+        <Skeleton className="mb-8 h-5 w-56" />
+        <div className="mb-8 flex gap-3">
+          <Skeleton className="h-11 w-40 rounded-md" />
+          <Skeleton className="h-11 w-28 rounded-md" />
+        </div>
+        <div className="flex flex-col gap-2">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <Skeleton key={i} className="h-16 w-full rounded-xl" />
+          ))}
+        </div>
+      </div>
+    );
+  }
+  // Still loading, but under the skeleton's grace period — render nothing
+  // rather than flash a skeleton in and out for a near-instant response.
+  if (loading) {
+    return null;
+  }
+
   if (notFound) {
     return (
       <div className="mx-auto max-w-3xl py-12 text-center text-base text-muted-foreground">
         This flashcard set doesn&apos;t exist or isn&apos;t public.
       </div>
     );
-  }
-  if (loading) {
-    return <div className="mx-auto max-w-3xl py-12 text-center text-base text-muted-foreground">Loading…</div>;
   }
 
   /* ─── Study mode ─── */
@@ -905,11 +963,19 @@ export function FlashcardSetView({ setId }: FlashcardSetViewProps): React.JSX.El
                 <div className="flex w-10 shrink-0 items-center justify-center border-r border-border/40 bg-muted/30 text-sm font-medium text-muted-foreground">
                   {i + 1}
                 </div>
-                <div className="flex flex-1 items-center border-r border-border/40 p-4 sm:p-5">
-                  <p className="text-base sm:text-lg">{card.front || <span className="italic text-muted-foreground">empty</span>}</p>
+                <div className="flex flex-1 items-center border-r border-border/40 p-4 text-base sm:p-5 sm:text-lg">
+                  {card.front ? (
+                    <MarkdownContent content={card.front} />
+                  ) : (
+                    <span className="italic text-muted-foreground">empty</span>
+                  )}
                 </div>
-                <div className="flex flex-1 items-center p-4 sm:p-5">
-                  <p className="text-base sm:text-lg">{card.back || <span className="italic text-muted-foreground">empty</span>}</p>
+                <div className="flex flex-1 items-center p-4 text-base sm:p-5 sm:text-lg">
+                  {card.back ? (
+                    <MarkdownContent content={card.back} />
+                  ) : (
+                    <span className="italic text-muted-foreground">empty</span>
+                  )}
                 </div>
               </div>
             ))}
@@ -988,15 +1054,18 @@ export function FlashcardSetView({ setId }: FlashcardSetViewProps): React.JSX.El
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
         <SortableContext items={cards.map((c) => c.id)} strategy={verticalListSortingStrategy}>
           <div className="flex flex-col gap-4">
+            {isOwner && cards.length > 0 ? <InsertCardGap onInsert={() => handleInsertCardAt(0)} /> : null}
             {cards.map((card, i) => (
-              <SortableCard
-                key={card.id}
-                card={card}
-                index={i}
-                isOwner={isOwner}
-                onUpdate={handleCardUpdate}
-                onDelete={handleCardDelete}
-              />
+              <Fragment key={card.id}>
+                <SortableCard
+                  card={card}
+                  index={i}
+                  isOwner={isOwner}
+                  onUpdate={handleCardUpdate}
+                  onDelete={handleCardDelete}
+                />
+                {isOwner ? <InsertCardGap onInsert={() => handleInsertCardAt(i + 1)} /> : null}
+              </Fragment>
             ))}
           </div>
         </SortableContext>

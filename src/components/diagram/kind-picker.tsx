@@ -1,33 +1,34 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Search, ChevronDown, ChevronRight } from "lucide-react";
 import {
   COMMON_NODE_KINDS,
-  NODE_COLORS,
   NODE_KIND_CATEGORIES,
   NODE_KIND_LABELS,
   NODE_KIND_SUPER_GROUPS,
+  nodeColorFor,
+  nodeLabelFor,
   type NodeKind,
 } from "@/lib/diagram-types";
 
 const RECENT_KINDS_STORAGE_KEY = "c4-diagram:recent-node-kinds";
 const MAX_RECENT_KINDS = 6;
 
-function loadRecentKinds(): NodeKind[] {
+function loadRecentKinds(): string[] {
   if (typeof window === "undefined") return [];
   try {
     const raw = window.localStorage.getItem(RECENT_KINDS_STORAGE_KEY);
     if (!raw) return [];
     const parsed = JSON.parse(raw) as unknown;
     if (!Array.isArray(parsed)) return [];
-    return parsed.filter((k): k is NodeKind => typeof k === "string" && k in NODE_KIND_LABELS);
+    return parsed.filter((k): k is string => typeof k === "string");
   } catch {
     return [];
   }
 }
 
-function saveRecentKind(kind: NodeKind): NodeKind[] {
+function saveRecentKind(kind: string): string[] {
   const next = [kind, ...loadRecentKinds().filter((k) => k !== kind)].slice(0, MAX_RECENT_KINDS);
   try {
     window.localStorage.setItem(RECENT_KINDS_STORAGE_KEY, JSON.stringify(next));
@@ -43,8 +44,8 @@ function KindRow({
   onPick,
 }: {
   kind: NodeKind;
-  currentKind?: NodeKind;
-  onPick: (kind: NodeKind) => void;
+  currentKind?: string;
+  onPick: (kind: string) => void;
 }): React.JSX.Element {
   return (
     <button
@@ -56,7 +57,7 @@ function KindRow({
     >
       <span
         className="inline-block h-2.5 w-2.5 shrink-0 rounded-full"
-        style={{ backgroundColor: NODE_COLORS[kind] }}
+        style={{ backgroundColor: nodeColorFor(kind) }}
       />
       {NODE_KIND_LABELS[kind]}
     </button>
@@ -118,8 +119,8 @@ function KindSearchBox({
   onPick,
   currentKind,
 }: {
-  onPick: (kind: NodeKind) => void;
-  currentKind?: NodeKind;
+  onPick: (kind: string) => void;
+  currentKind?: string;
 }): React.JSX.Element {
   const [query, setQuery] = useState("");
   const lowerQuery = query.trim().toLowerCase();
@@ -137,7 +138,7 @@ function KindSearchBox({
         <input
           type="text"
           className="h-6 flex-1 bg-transparent text-xs outline-none placeholder:text-muted-foreground"
-          placeholder="Search node kinds…"
+          placeholder="Search preset kinds…"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
         />
@@ -159,20 +160,21 @@ function KindSearchBox({
  * Self-contained browse pane: Common, Recent, and the 5 super-groups — every
  * section collapsible the same way. Has no notion of a search query at all;
  * it always shows the full tree, unaffected by whatever is typed in
- * {@link KindSearchBox}.
+ * {@link KindSearchBox}. Recent kinds that aren't presets (custom, typed
+ * kinds) are shown too, using their own typed text as the row label.
  */
 function KindGroupPane({
   recentKinds,
   onPick,
   currentKind,
 }: {
-  recentKinds: NodeKind[];
-  onPick: (kind: NodeKind) => void;
-  currentKind?: NodeKind;
+  recentKinds: string[];
+  onPick: (kind: string) => void;
+  currentKind?: string;
 }): React.JSX.Element {
   const [expanded, setExpanded] = useState<Set<string>>(DEFAULT_EXPANDED);
 
-  const shownAlready = new Set(COMMON_NODE_KINDS);
+  const shownAlready = new Set<string>(COMMON_NODE_KINDS);
   const recentKindsToShow = recentKinds.filter((k) => !shownAlready.has(k));
   recentKindsToShow.forEach((k) => shownAlready.add(k));
 
@@ -205,9 +207,28 @@ function KindGroupPane({
         </CollapsibleSection>
         {recentKindsToShow.length > 0 ? (
           <CollapsibleSection label="Recent" expanded={expanded.has("Recent")} onToggle={() => toggle("Recent")}>
-            {recentKindsToShow.map((kind) => (
-              <KindRow key={`recent-${kind}`} kind={kind} currentKind={currentKind} onPick={onPick} />
-            ))}
+            {recentKindsToShow.map((kind) =>
+              // A recent kind might be a custom (typed) one that isn't in
+              // NODE_KIND_LABELS at all — fall back to a plain text row.
+              kind in NODE_KIND_LABELS ? (
+                <KindRow key={`recent-${kind}`} kind={kind as NodeKind} currentKind={currentKind} onPick={onPick} />
+              ) : (
+                <button
+                  key={`recent-${kind}`}
+                  type="button"
+                  className={`flex w-full items-center gap-2 rounded-md px-2 py-1 text-xs hover:bg-accent ${
+                    kind === currentKind ? "bg-accent font-medium" : ""
+                  }`}
+                  onClick={() => onPick(kind)}
+                >
+                  <span
+                    className="inline-block h-2.5 w-2.5 shrink-0 rounded-full"
+                    style={{ backgroundColor: nodeColorFor(kind) }}
+                  />
+                  {kind}
+                </button>
+              ),
+            )}
           </CollapsibleSection>
         ) : null}
         {groups.map(({ group, categories }) => (
@@ -234,37 +255,107 @@ function KindGroupPane({
 
 export interface InlineKindPickerProps {
   /** The currently armed/selected kind, if any — highlighted in the list. */
-  currentKind?: NodeKind;
-  onPick: (kind: NodeKind) => void;
+  currentKind?: string;
+  onPick: (kind: string) => void;
   disabled?: boolean;
+  className?: string;
 }
 
 /**
- * Always-visible kind picker: no trigger button, no popup. Two genuinely
- * separate panes stacked at the same level, each with its own internal
- * state — {@link KindSearchBox} (type, get flat results) and
- * {@link KindGroupPane} (click through collapsible sections). Neither
- * reacts to the other; picking a kind in either just calls `onPick`. Used
- * both for arming a kind to place (from the toolbar) and for changing a
- * selected node's kind (from the properties panel).
+ * Kind combobox: a text input the user can type any kind name into directly
+ * — that typed text becomes the kind itself, for a "custom" kind that isn't
+ * one of the presets — plus a chevron button that opens a dropdown with the
+ * full preset search/browse tree for picking a built-in kind instead.
+ * Picking a preset fills the input with its friendly label; typing anything
+ * else just uses the raw text as both the kind and its own label. Used both
+ * for arming a kind to place (from the toolbar) and for changing a selected
+ * node's kind (from the properties panel).
  */
-export function InlineKindPicker({ currentKind, onPick, disabled }: InlineKindPickerProps): React.JSX.Element {
-  const [recentKinds, setRecentKinds] = useState<NodeKind[]>([]);
+export function InlineKindPicker({
+  currentKind,
+  onPick,
+  disabled,
+  className,
+}: InlineKindPickerProps): React.JSX.Element {
+  const [recentKinds, setRecentKinds] = useState<string[]>([]);
+  const [open, setOpen] = useState(false);
+  const [text, setText] = useState(currentKind ? nodeLabelFor(currentKind) : "");
+  const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setRecentKinds(loadRecentKinds());
   }, []);
 
-  const handlePick = (kind: NodeKind): void => {
+  useEffect(() => {
+    // Keep the input's text in sync when the kind changes from elsewhere
+    // (e.g. selecting a different node) — but not while the user is mid-type.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setText(currentKind ? nodeLabelFor(currentKind) : "");
+  }, [currentKind]);
+
+  useEffect(() => {
+    if (!open) return;
+    const onPointerDown = (e: MouseEvent): void => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", onPointerDown);
+    return (): void => document.removeEventListener("mousedown", onPointerDown);
+  }, [open]);
+
+  const handlePick = (kind: string): void => {
     onPick(kind);
+    setText(nodeLabelFor(kind));
     setRecentKinds(saveRecentKind(kind));
+    setOpen(false);
+  };
+
+  const commitTyped = (value: string): void => {
+    const trimmed = value.trim();
+    if (trimmed && trimmed !== currentKind) {
+      onPick(trimmed);
+      setRecentKinds(saveRecentKind(trimmed));
+    }
   };
 
   return (
-    <div className={`flex flex-col gap-2 ${disabled ? "pointer-events-none opacity-50" : ""}`}>
-      <KindSearchBox onPick={handlePick} currentKind={currentKind} />
-      <KindGroupPane recentKinds={recentKinds} onPick={handlePick} currentKind={currentKind} />
+    <div
+      ref={containerRef}
+      className={`relative flex flex-col gap-1.5 ${disabled ? "pointer-events-none opacity-50" : ""} ${className ?? ""}`}
+    >
+      <div className="flex items-center gap-1">
+        <input
+          type="text"
+          className="h-8 min-w-0 flex-1 rounded-md border border-input bg-transparent px-2 text-xs outline-none placeholder:text-muted-foreground focus:border-primary"
+          placeholder="Type a kind…"
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          onBlur={(e) => commitTyped(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              commitTyped(e.currentTarget.value);
+              setOpen(false);
+            } else if (e.key === "Escape") {
+              setOpen(false);
+            }
+          }}
+        />
+        <button
+          type="button"
+          title="Browse preset kinds"
+          onClick={() => setOpen((v) => !v)}
+          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-input text-muted-foreground hover:bg-accent hover:text-foreground"
+        >
+          <ChevronDown className={`h-3.5 w-3.5 transition-transform ${open ? "rotate-180" : ""}`} />
+        </button>
+      </div>
+      {open ? (
+        <div className="relative z-10 flex w-full flex-col gap-2">
+          <KindSearchBox onPick={handlePick} currentKind={currentKind} />
+          <KindGroupPane recentKinds={recentKinds} onPick={handlePick} currentKind={currentKind} />
+        </div>
+      ) : null}
     </div>
   );
 }

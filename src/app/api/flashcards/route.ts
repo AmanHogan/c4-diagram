@@ -28,6 +28,10 @@ export async function GET(): Promise<NextResponse> {
       updatedAt: s.updatedAt,
       folderId: s.folderId,
       cardCount: s.cards.length,
+      // First few terms, for the dashboard's poster-card preview list — the
+      // full `cards` array is already fetched above for cardCount, so this
+      // is free.
+      termsPreview: s.cards.slice(0, 8).map((c) => c.front),
     })),
   );
 }

@@ -14,7 +14,14 @@ export async function GET(): Promise<NextResponse> {
 
   await connectToDatabase();
   const folders = await Folder.find({ ownerId: userId }).sort({ name: 1 }).lean();
-  return NextResponse.json(folders.map((f) => ({ id: f._id.toString(), name: f.name })));
+  return NextResponse.json(
+    folders.map((f) => ({
+      id: f._id.toString(),
+      name: f.name,
+      description: f.description,
+      updatedAt: f.updatedAt,
+    })),
+  );
 }
 
 /**

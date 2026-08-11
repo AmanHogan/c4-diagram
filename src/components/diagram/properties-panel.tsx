@@ -16,8 +16,8 @@ import {
   EDGE_KIND_LABELS,
   EDGE_STYLES,
   HANDLE_SIDE_LABELS,
-  NODE_COLORS,
   TEXT_SIZE_LABELS,
+  nodeColorFor,
   type ArrowStyle,
   type DiagramEdgeData,
   type DiagramNodeData,
@@ -34,22 +34,86 @@ const TEXT_SIZES = Object.keys(TEXT_SIZE_LABELS) as TextSize[];
 
 const EDGE_KINDS = Object.keys(EDGE_KIND_LABELS) as EdgeKind[];
 const HANDLE_SIDES = Object.keys(HANDLE_SIDE_LABELS) as HandleSide[];
-const SHAPES: { value: NodeShape; label: string }[] = [
-  { value: "rectangle", label: "Rectangle" },
-  { value: "rounded", label: "Rounded" },
-  { value: "diamond", label: "Diamond" },
-  { value: "ellipse", label: "Ellipse" },
+const SHAPES: { value: NodeShape; label: string; radius: string }[] = [
+  { value: "rectangle", label: "Rectangle", radius: "0" },
+  { value: "rounded", label: "Rounded", radius: "5px" },
+  { value: "diamond", label: "Diamond", radius: "0" },
+  { value: "ellipse", label: "Ellipse", radius: "999px" },
 ];
-const LINE_STYLES: { value: LineStyle; label: string }[] = [
+const LINE_STYLES: { value: LineStyle; label: string; dasharray?: string }[] = [
   { value: "solid", label: "Solid" },
-  { value: "dashed", label: "Dashed" },
-  { value: "dotted", label: "Dotted" },
+  { value: "dashed", label: "Dashed", dasharray: "4 3" },
+  { value: "dotted", label: "Dotted", dasharray: "1.5 2.5" },
 ];
 const ARROW_STYLES: { value: ArrowStyle; label: string }[] = [
   { value: "forward", label: "One-way →" },
   { value: "both", label: "Bidirectional ↔" },
   { value: "none", label: "No arrowheads —" },
 ];
+
+const PINNED_COLORS_STORAGE_KEY = "c4-diagram:pinned-colors";
+const MAX_PINNED_COLORS = 8;
+
+function loadPinnedColors(): string[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = window.localStorage.getItem(PINNED_COLORS_STORAGE_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw) as unknown;
+    return Array.isArray(parsed) ? parsed.filter((c): c is string => typeof c === "string") : [];
+  } catch {
+    return [];
+  }
+}
+
+function savePinnedColors(colors: string[]): void {
+  try {
+    window.localStorage.setItem(PINNED_COLORS_STORAGE_KEY, JSON.stringify(colors));
+  } catch {
+    // localStorage unavailable — pins just won't persist.
+  }
+}
+
+/**
+ * A row of small icon buttons instead of a text dropdown — each button is a
+ * tiny visual preview of the option itself (an actual rounded/diamond/oval
+ * swatch, an actual solid/dashed/dotted line) rather than a word, so picking
+ * a shape or line style is a glance instead of a read.
+ */
+function IconOptionRow<Option extends { value: string; label: string }>({
+  options,
+  value,
+  onChange,
+  disabled,
+  renderPreview,
+}: {
+  options: Option[];
+  value: Option["value"];
+  onChange: (value: Option["value"]) => void;
+  disabled?: boolean;
+  renderPreview: (option: Option, active: boolean) => React.ReactNode;
+}): React.JSX.Element {
+  return (
+    <div className="flex gap-1.5">
+      {options.map((option) => (
+        <button
+          key={option.value}
+          type="button"
+          title={option.label}
+          disabled={disabled}
+          onClick={() => onChange(option.value)}
+          className={`flex h-9 flex-1 items-center justify-center rounded-md border transition-colors disabled:opacity-50 ${
+            option.value === value
+              ? "border-primary bg-primary/10"
+              : "border-input hover:bg-accent"
+          }`}
+        >
+          {renderPreview(option, option.value === value)}
+        </button>
+      ))}
+    </div>
+  );
+}
 
 interface FillColorPickerProps {
   value: string;
@@ -92,6 +156,78 @@ function FillColorPicker({ value, onCommit }: FillColorPickerProps): React.JSX.E
       value={local}
       onInput={(e) => setLocal(e.currentTarget.value)}
     />
+  );
+}
+
+interface PinnedColorRowProps {
+  value: string;
+  onPick: (color: string) => void;
+  disabled?: boolean;
+}
+
+/**
+ * Small palette of colors the user has pinned for reuse — mainly useful now
+ * that kinds can be freely typed and no longer come with a guaranteed preset
+ * color, so a consistent custom color only has to be picked once and can
+ * then be reapplied with a click. The current fill color can be pinned with
+ * the "+" swatch; a pinned swatch can be unpinned with a right-click.
+ * @param props The current fill color, a pick callback, and whether disabled.
+ * @returns The rendered swatch row.
+ */
+function PinnedColorRow({ value, onPick, disabled }: PinnedColorRowProps): React.JSX.Element {
+  const [pinned, setPinned] = useState<string[]>([]);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setPinned(loadPinnedColors());
+  }, []);
+
+  const pinCurrent = (): void => {
+    setPinned((prev) => {
+      if (prev.includes(value)) return prev;
+      const next = [value, ...prev].slice(0, MAX_PINNED_COLORS);
+      savePinnedColors(next);
+      return next;
+    });
+  };
+
+  const unpin = (color: string): void => {
+    setPinned((prev) => {
+      const next = prev.filter((c) => c !== color);
+      savePinnedColors(next);
+      return next;
+    });
+  };
+
+  return (
+    <div className="flex flex-wrap items-center gap-1.5">
+      {pinned.map((color) => (
+        <button
+          key={color}
+          type="button"
+          title={`${color} — right-click to unpin`}
+          disabled={disabled}
+          onClick={() => onPick(color)}
+          onContextMenu={(e) => {
+            e.preventDefault();
+            unpin(color);
+          }}
+          className={`h-5 w-5 shrink-0 rounded-full border transition-transform hover:scale-110 disabled:opacity-50 ${
+            color === value ? "ring-2 ring-primary ring-offset-1 ring-offset-sidebar" : "border-border"
+          }`}
+          style={{ backgroundColor: color }}
+        />
+      ))}
+      <button
+        type="button"
+        title="Pin the current color"
+        disabled={disabled || pinned.includes(value)}
+        onClick={pinCurrent}
+        className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-dashed border-muted-foreground text-[10px] leading-none text-muted-foreground hover:border-primary hover:text-primary disabled:opacity-30"
+      >
+        +
+      </button>
+    </div>
   );
 }
 
@@ -214,82 +350,79 @@ export function PropertiesPanel({
 
           {selectedNode.kind !== "text" ? (
             <>
-              <label className="flex flex-col gap-1 text-xs">
+              <div className="flex flex-col gap-1 text-xs">
                 Shape
-                <Select
-                  disabled={readOnly}
+                <IconOptionRow
+                  options={SHAPES}
                   value={selectedNode.shape ?? "rounded"}
-                  onValueChange={(value) => onUpdateNode(selectedNode.id, { shape: value as NodeShape })}
-                >
-                  <SelectTrigger size="sm">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {SHAPES.map((s) => (
-                      <SelectItem key={s.value} value={s.value}>
-                        {s.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </label>
-
-              <label className="flex flex-col gap-1 text-xs">
-                Border style
-                <Select
+                  onChange={(shape) => onUpdateNode(selectedNode.id, { shape })}
                   disabled={readOnly}
+                  renderPreview={(option) => (
+                    <span
+                      className="h-4 w-6 border-[1.5px] border-current"
+                      style={{ borderRadius: option.radius, clipPath: option.value === "diamond" ? "polygon(50% 0,100% 50%,50% 100%,0 50%)" : undefined }}
+                    />
+                  )}
+                />
+              </div>
+
+              <div className="flex flex-col gap-1 text-xs">
+                Border style
+                <IconOptionRow
+                  options={LINE_STYLES}
                   value={selectedNode.borderStyle ?? "solid"}
-                  onValueChange={(value) =>
-                    onUpdateNode(selectedNode.id, { borderStyle: value as LineStyle })
-                  }
-                >
-                  <SelectTrigger size="sm">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {LINE_STYLES.map((s) => (
-                      <SelectItem key={s.value} value={s.value}>
-                        {s.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </label>
+                  onChange={(borderStyle) => onUpdateNode(selectedNode.id, { borderStyle })}
+                  disabled={readOnly}
+                  renderPreview={(option) => (
+                    <svg width="24" height="8" viewBox="0 0 24 8" className="overflow-visible">
+                      <line
+                        x1="1"
+                        y1="4"
+                        x2="23"
+                        y2="4"
+                        stroke="currentColor"
+                        strokeWidth="1.75"
+                        strokeLinecap="round"
+                        strokeDasharray={option.dasharray}
+                      />
+                    </svg>
+                  )}
+                />
+              </div>
 
               <div className="flex flex-col gap-1 text-xs">
                 Fill
-                <div className="flex gap-1.5">
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant={selectedNode.filled === false ? "outline" : "secondary"}
-                    disabled={readOnly}
-                    className="flex-1"
-                    onClick={() => onUpdateNode(selectedNode.id, { filled: true })}
-                  >
-                    Filled
-                  </Button>
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant={selectedNode.filled === false ? "secondary" : "outline"}
-                    disabled={readOnly}
-                    className="flex-1"
-                    onClick={() => onUpdateNode(selectedNode.id, { filled: false })}
-                  >
-                    Outline
-                  </Button>
-                </div>
+                <IconOptionRow
+                  options={[
+                    { value: "filled" as const, label: "Filled" },
+                    { value: "outline" as const, label: "Outline" },
+                  ]}
+                  value={selectedNode.filled === false ? "outline" : "filled"}
+                  onChange={(value) => onUpdateNode(selectedNode.id, { filled: value === "filled" })}
+                  disabled={readOnly}
+                  renderPreview={(option) => (
+                    <span
+                      className="h-4 w-4 rounded-sm border-[1.5px] border-current"
+                      style={{ backgroundColor: option.value === "filled" ? "currentColor" : "transparent" }}
+                    />
+                  )}
+                />
               </div>
 
               {!readOnly ? (
-                <label className="flex flex-col gap-1 text-xs">
-                  {selectedNode.filled === false ? "Outline color" : "Fill color"}
-                  <FillColorPicker
-                    value={selectedNode.fillColor ?? NODE_COLORS[selectedNode.kind]}
-                    onCommit={(color) => onUpdateNode(selectedNode.id, { fillColor: color })}
+                <div className="flex flex-col gap-1.5 text-xs">
+                  <label className="flex flex-col gap-1">
+                    {selectedNode.filled === false ? "Outline color" : "Fill color"}
+                    <FillColorPicker
+                      value={selectedNode.fillColor ?? nodeColorFor(selectedNode.kind)}
+                      onCommit={(color) => onUpdateNode(selectedNode.id, { fillColor: color })}
+                    />
+                  </label>
+                  <PinnedColorRow
+                    value={selectedNode.fillColor ?? nodeColorFor(selectedNode.kind)}
+                    onPick={(color) => onUpdateNode(selectedNode.id, { fillColor: color })}
                   />
-                </label>
+                </div>
               ) : null}
 
               <label className="flex flex-col gap-1 text-xs">
@@ -308,7 +441,7 @@ export function PropertiesPanel({
                 <label className="flex flex-col gap-1 text-xs">
                   Text color
                   <FillColorPicker
-                    value={selectedNode.fillColor ?? NODE_COLORS[selectedNode.kind]}
+                    value={selectedNode.fillColor ?? nodeColorFor(selectedNode.kind)}
                     onCommit={(color) => onUpdateNode(selectedNode.id, { fillColor: color })}
                   />
                 </label>

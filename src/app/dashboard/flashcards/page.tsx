@@ -9,8 +9,8 @@ import { LibraryListPage } from "@/components/library/library-list-page";
 export default function FlashcardsPage(): React.JSX.Element {
   return (
     <LibraryListPage
-      title="Flashcards"
-      description="Study sets you can keep private or share publicly."
+      title="Your flashcard sets."
+      description="Every set you've created, ready to study."
       listUrl="/api/flashcards"
       createUrl="/api/flashcards"
       detailHref={(id) => `/dashboard/flashcards/${id}`}

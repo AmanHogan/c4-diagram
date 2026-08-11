@@ -23,24 +23,25 @@ import {
 import "@xyflow/react/dist/style.css";
 import { toPng } from "html-to-image";
 import { toast } from "sonner";
-import { ChevronRight, Download, GitFork, Home, Lock, Globe, Moon, Sun } from "lucide-react";
+import { ChevronRight, Download, GitFork, Home, Moon, Sun } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Skeleton } from "@/components/ui/skeleton";
 import { CompositeNode, type CompositeNodeData } from "@/components/diagram/composite-node";
 import { DiagramToolbar, type DiagramTool } from "@/components/diagram/diagram-toolbar";
 import { PropertiesPanel } from "@/components/diagram/properties-panel";
-import { FolderPicker } from "@/components/library/folder-picker";
+import { EditDetailsButton } from "@/components/diagram/edit-details-button";
 import {
-  DEFAULT_NODE_SHAPE,
+  DEFAULT_NODE_KIND,
   EDGE_STYLES,
   FLOW_NODE_KINDS,
-  NODE_COLORS,
+  nodeColorFor,
+  nodeShapeFor,
   type DiagramDocument,
   type DiagramEdgeData,
   type DiagramNodeData,
   type EdgeKind,
   type HandleSide,
-  type NodeKind,
 } from "@/lib/diagram-types";
 
 const NODE_TYPES = { composite: CompositeNode };
@@ -89,6 +90,7 @@ function loadDefaultFilled(): boolean | undefined {
 interface DiagramApiResponse extends DiagramDocument {
   id: string;
   name: string;
+  description?: string;
   visibility: "public" | "private";
   folderId: string | null;
   isOwner: boolean;
@@ -353,7 +355,7 @@ function diagramNodeToFlowNode(
       kind: node.kind,
       description: node.description,
       shape: node.shape ?? "rounded",
-      fillColor: node.fillColor ?? NODE_COLORS[node.kind],
+      fillColor: node.fillColor ?? nodeColorFor(node.kind),
       borderStyle: node.borderStyle ?? "solid",
       filled: node.filled,
       fontSize: node.fontSize,
@@ -396,7 +398,7 @@ function diagramNodeToGhostFlowNode(
       kind: original?.kind ?? "external-access",
       description: original?.description,
       shape: original?.shape ?? "rounded",
-      fillColor: original ? original.fillColor ?? NODE_COLORS[original.kind] : NODE_COLORS["external-access"],
+      fillColor: original ? original.fillColor ?? nodeColorFor(original.kind) : nodeColorFor("external-access"),
       borderStyle: "dashed",
       hasChildren: false,
       expanded: false,
@@ -508,6 +510,7 @@ function DiagramCanvasInner({ diagramId }: DiagramCanvasInnerProps): React.JSX.E
   const [notFound, setNotFound] = useState(false);
   const [saving, setSaving] = useState(false);
   const [diagramName, setDiagramName] = useState("");
+  const [diagramDescription, setDiagramDescription] = useState("");
   const [visibility, setVisibility] = useState<"public" | "private">("private");
   const [folderId, setFolderId] = useState<string | null>(null);
   const [isOwner, setIsOwner] = useState(false);
@@ -517,7 +520,6 @@ function DiagramCanvasInner({ diagramId }: DiagramCanvasInnerProps): React.JSX.E
   const [selectedEdge, setSelectedEdge] = useState<DiagramEdgeData | null>(null);
   const [selectedNodeIds, setSelectedNodeIds] = useState<string[]>([]);
   const [tool, setTool] = useState<DiagramTool>("select");
-  const [pendingNodeKind, setPendingNodeKind] = useState<NodeKind | null>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
   const clipboardRef = useRef<{ nodes: DiagramNodeData[]; edges: DiagramEdgeData[] } | null>(null);
   const { fitView, screenToFlowPosition } = useReactFlow();
@@ -746,10 +748,9 @@ function DiagramCanvasInner({ diagramId }: DiagramCanvasInnerProps): React.JSX.E
 
       const mod = e.metaKey || e.ctrlKey;
 
-      if (e.key === "Escape" && (tool !== "select" || pendingNodeKind)) {
+      if (e.key === "Escape" && tool !== "select") {
         e.preventDefault();
         setTool("select");
-        setPendingNodeKind(null);
         return;
       }
 
@@ -842,7 +843,7 @@ function DiagramCanvasInner({ diagramId }: DiagramCanvasInnerProps): React.JSX.E
     return (): void => {
       window.removeEventListener("keydown", handler);
     };
-  }, [rebuildFlow, onToggleExpand, onDrillIn, tool, pendingNodeKind]);
+  }, [rebuildFlow, onToggleExpand, onDrillIn, tool]);
 
   useEffect(() => {
     let cancelled = false;
@@ -869,6 +870,7 @@ function DiagramCanvasInner({ diagramId }: DiagramCanvasInnerProps): React.JSX.E
       }
       diagramRef.current = { nodes: normalizedNodes, edges: data.edges };
       setDiagramName(data.name);
+      setDiagramDescription(data.description ?? "");
       setVisibility(data.visibility);
       setFolderId(data.folderId);
       setIsOwner(data.isOwner);
@@ -923,7 +925,7 @@ function DiagramCanvasInner({ diagramId }: DiagramCanvasInnerProps): React.JSX.E
       const id = `e-${connection.source}-${connection.target}-${Date.now()}`;
       const sourceNode = diagramRef.current.nodes.find((n) => n.id === connection.source);
       const defaultKind: EdgeKind =
-        sourceNode && FLOW_NODE_KINDS.includes(sourceNode.kind) ? "flow" : "lan";
+        sourceNode && (FLOW_NODE_KINDS as readonly string[]).includes(sourceNode.kind) ? "flow" : "lan";
       const newEdge: DiagramEdgeData = {
         id,
         source: connection.source,
@@ -981,7 +983,6 @@ function DiagramCanvasInner({ diagramId }: DiagramCanvasInnerProps): React.JSX.E
     (event: React.MouseEvent) => {
       if (readOnlyRef.current) {
         setTool("select");
-        setPendingNodeKind(null);
         setSelectedNode(null);
         setSelectedEdge(null);
         setSelectedNodeIds([]);
@@ -1019,20 +1020,21 @@ function DiagramCanvasInner({ diagramId }: DiagramCanvasInnerProps): React.JSX.E
         return;
       }
 
-      // Node tool: a kind must already be armed (picked from the properties
-      // panel, which only shows the picker while this tool is active) —
-      // clicking places one of that kind at the click point.
-      if (tool === "node" && pendingNodeKind) {
+      // Node tool: a single click places a default-kind node right where
+      // you clicked (no "pick a kind first" step) — it's immediately
+      // selected, so its kind/label/style can all be changed straight away
+      // from the properties panel that opens for it.
+      if (tool === "node") {
         const position = screenToFlowPosition({ x: event.clientX, y: event.clientY });
         const id = `node-${Date.now()}`;
         const newNode: DiagramNodeData = {
           id,
-          kind: pendingNodeKind,
+          kind: DEFAULT_NODE_KIND,
           label: "New node",
           parentId: scopeIdRef.current,
           expanded: false,
           position,
-          shape: DEFAULT_NODE_SHAPE[pendingNodeKind] ?? "rounded",
+          shape: nodeShapeFor(DEFAULT_NODE_KIND),
           borderStyle: "solid",
           filled: loadDefaultFilled(),
         };
@@ -1043,7 +1045,6 @@ function DiagramCanvasInner({ diagramId }: DiagramCanvasInnerProps): React.JSX.E
         setSelectedNodeIds([id]);
         setSelectedEdge(null);
         setTool("select");
-        setPendingNodeKind(null);
         return;
       }
 
@@ -1051,7 +1052,7 @@ function DiagramCanvasInner({ diagramId }: DiagramCanvasInnerProps): React.JSX.E
       setSelectedEdge(null);
       setSelectedNodeIds([]);
     },
-    [tool, pendingNodeKind, screenToFlowPosition, rebuildFlow, onToggleExpand, onDrillIn, setNodes],
+    [tool, screenToFlowPosition, rebuildFlow, onToggleExpand, onDrillIn, setNodes],
   );
 
   const onUpdateNode = useCallback(
@@ -1088,7 +1089,7 @@ function DiagramCanvasInner({ diagramId }: DiagramCanvasInnerProps): React.JSX.E
                   kind: updated.kind,
                   description: updated.description,
                   shape: updated.shape ?? "rounded",
-                  fillColor: updated.fillColor ?? NODE_COLORS[updated.kind],
+                  fillColor: updated.fillColor ?? nodeColorFor(updated.kind),
                   borderStyle: updated.borderStyle ?? "solid",
                   filled: updated.filled,
                   fontSize: updated.fontSize,
@@ -1210,15 +1211,8 @@ function DiagramCanvasInner({ diagramId }: DiagramCanvasInnerProps): React.JSX.E
     [rebuildFlow, onToggleExpand, onDrillIn],
   );
 
-  // Arms a kind for placement while the Node tool is active — the actual
-  // node gets created by onPaneClick, at wherever the user clicks.
-  const onArmNodeKind = useCallback((kind: NodeKind) => {
-    setPendingNodeKind(kind);
-  }, []);
-
   const onSelectTool = useCallback((next: DiagramTool) => {
     setTool(next);
-    setPendingNodeKind(null);
   }, []);
 
   const handleSave = useCallback(async () => {
@@ -1246,6 +1240,18 @@ function DiagramCanvasInner({ diagramId }: DiagramCanvasInnerProps): React.JSX.E
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name }),
+      });
+    },
+    [diagramId],
+  );
+
+  const handleDescriptionChange = useCallback(
+    async (description: string) => {
+      setDiagramDescription(description);
+      await fetch(`/api/diagrams/${diagramId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ description }),
       });
     },
     [diagramId],
@@ -1330,8 +1336,14 @@ function DiagramCanvasInner({ diagramId }: DiagramCanvasInnerProps): React.JSX.E
 
   if (loading) {
     return (
-      <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
-        Loading diagram…
+      <div className="relative h-full w-full overflow-hidden">
+        <div className="absolute inset-x-3 top-3 flex items-center gap-2">
+          <Skeleton className="h-9 w-64 rounded-lg" />
+          <Skeleton className="h-9 w-28 rounded-lg" />
+        </div>
+        <Skeleton className="absolute left-[12%] top-[30%] h-28 w-52 rounded-xl" />
+        <Skeleton className="absolute left-[42%] top-[48%] h-24 w-44 rounded-xl" />
+        <Skeleton className="absolute left-[65%] top-[24%] h-20 w-40 rounded-xl" />
       </div>
     );
   }
@@ -1352,25 +1364,19 @@ function DiagramCanvasInner({ diagramId }: DiagramCanvasInnerProps): React.JSX.E
                 <span className="px-1 text-sm font-medium">{diagramName}</span>
               )}
               {isOwner ? (
-                <button
-                  type="button"
-                  title={visibility === "public" ? "Public — anyone can view" : "Private — only you can view"}
-                  onClick={() => void handleToggleVisibility()}
-                  className="flex items-center gap-1 rounded px-1.5 py-0.5 text-xs text-muted-foreground hover:bg-accent hover:text-foreground"
-                >
-                  {visibility === "public" ? <Globe className="h-3.5 w-3.5" /> : <Lock className="h-3.5 w-3.5" />}
-                  {visibility === "public" ? "Public" : "Private"}
-                </button>
+                <EditDetailsButton
+                  description={diagramDescription}
+                  onDescriptionChange={(value) => void handleDescriptionChange(value)}
+                  visibility={visibility}
+                  onToggleVisibility={() => void handleToggleVisibility()}
+                  folderId={folderId}
+                  onChangeFolder={(id) => void handleChangeFolder(id)}
+                />
+              ) : diagramDescription ? (
+                <span className="max-w-48 truncate px-1 text-xs text-muted-foreground">{diagramDescription}</span>
               ) : null}
-              {isOwner ? <FolderPicker value={folderId} onChange={(id) => void handleChangeFolder(id)} /> : null}
             </div>
-            <DiagramToolbar
-              tool={tool}
-              onSelectTool={onSelectTool}
-              readOnly={readOnly}
-              pendingNodeKind={pendingNodeKind}
-              onArmNodeKind={onArmNodeKind}
-            />
+            <DiagramToolbar tool={tool} onSelectTool={onSelectTool} readOnly={readOnly} />
             <div className="flex items-center gap-1 rounded-lg border bg-sidebar/95 px-2 py-1.5 text-sm shadow-sm backdrop-blur-sm">
               <button
                 type="button"

@@ -11,14 +11,9 @@ const userSchema = new mongoose.Schema(
       trim: true,
     },
     passwordHash: { type: String, required: true },
-    theme: {
-      accent: { type: String },
-      background: { type: String },
-      card: { type: String },
-      sidebar: { type: String },
-    },
-    /** Light/dark for the diagram canvas specifically — independent of the
-     * (currently dark-only) rest-of-app theme above. */
+    /** Light/dark for the diagram canvas specifically — the app shell
+     * itself is dark-only with no theming, so this is the only place a
+     * user picks between light and dark. */
     diagramCanvasMode: { type: String, enum: ["dark", "light"] },
   },
   { timestamps: true },

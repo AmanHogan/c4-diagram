@@ -48,6 +48,7 @@ const diagramEdgeSchema = new mongoose.Schema(
 const diagramSchema = new mongoose.Schema(
   {
     name: { type: String, required: true, trim: true },
+    description: { type: String },
     ownerId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
     visibility: { type: String, enum: ["public", "private"], default: "private" },
     folderId: { type: mongoose.Schema.Types.ObjectId, ref: "Folder", default: null },

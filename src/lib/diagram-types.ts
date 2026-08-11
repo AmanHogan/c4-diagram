@@ -98,7 +98,10 @@ export type HandleSide = "top" | "right" | "bottom" | "left";
 
 export interface DiagramNodeData {
   id: string;
-  kind: NodeKind;
+  /** A preset {@link NodeKind} key, or free text the user typed for a
+   * custom kind that isn't in the preset list — see {@link isKnownNodeKind},
+   * {@link nodeColorFor}, {@link nodeLabelFor}, {@link nodeShapeFor}. */
+  kind: string;
   label: string;
   /** Id of the containing node, or null at the top level. */
   parentId: string | null;
@@ -391,6 +394,39 @@ export const DEFAULT_NODE_SHAPE: Partial<Record<NodeKind, NodeShape>> = {
   "input-output": "rectangle",
   subprocess: "rounded",
 };
+
+/** Neutral fallback color for a custom (user-typed) kind that has no preset
+ * color of its own. */
+export const CUSTOM_KIND_COLOR = "#6b7280";
+
+/** Kind a newly placed node starts as — placing is a single click now (no
+ * "pick a kind first" step); the kind can be changed straight after, from
+ * the properties panel that opens automatically on the new node. */
+export const DEFAULT_NODE_KIND: NodeKind = "container";
+
+/** True if `kind` matches one of the built-in preset kinds, as opposed to
+ * free text the user typed for a custom kind. */
+export function isKnownNodeKind(kind: string): kind is NodeKind {
+  return Object.prototype.hasOwnProperty.call(NODE_KIND_LABELS, kind);
+}
+
+/** A node's accent color: the preset's default, or the neutral fallback for
+ * a custom kind. Callers should still prefer the node's own `fillColor`
+ * override first — this is only the kind-level default. */
+export function nodeColorFor(kind: string): string {
+  return isKnownNodeKind(kind) ? NODE_COLORS[kind] : CUSTOM_KIND_COLOR;
+}
+
+/** A node's display label: the preset's friendly label, or the typed text
+ * itself for a custom kind — it doubles as its own label. */
+export function nodeLabelFor(kind: string): string {
+  return isKnownNodeKind(kind) ? NODE_KIND_LABELS[kind] : kind;
+}
+
+/** A node's default shape: the preset's, or "rounded" for a custom kind. */
+export function nodeShapeFor(kind: string): NodeShape {
+  return isKnownNodeKind(kind) ? (DEFAULT_NODE_SHAPE[kind] ?? "rounded") : "rounded";
+}
 
 export const EDGE_KIND_LABELS: Record<EdgeKind, string> = {
   lan: "LAN",

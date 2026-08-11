@@ -4,18 +4,19 @@ import { memo, useEffect, useRef, useState } from "react";
 import { Handle, NodeResizer, Position, type NodeProps } from "@xyflow/react";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import {
-  NODE_COLORS,
-  NODE_KIND_LABELS,
   TEXT_SIZE_PX,
+  nodeColorFor,
+  nodeLabelFor,
   type LineStyle,
-  type NodeKind,
   type NodeShape,
   type TextSize,
 } from "@/lib/diagram-types";
 
 export interface CompositeNodeData extends Record<string, unknown> {
   label: string;
-  kind: NodeKind;
+  /** A preset kind key, or free text for a custom kind — see
+   * {@link nodeColorFor}/{@link nodeLabelFor}. */
+  kind: string;
   description?: string;
   shape: NodeShape;
   fillColor: string;
@@ -216,7 +217,7 @@ function CompositeNodeImpl({ id, data, selected }: NodeProps): React.JSX.Element
     onStartTextEdit,
     onCommitTextEdit,
   } = data as CompositeNodeData;
-  const color = fillColor || NODE_COLORS[kind];
+  const color = fillColor || nodeColorFor(kind);
   const centered = CENTERED_SHAPES.includes(shape);
   const fillBase = isLightTheme ? FILL_BASE_LIGHT : FILL_BASE_DARK;
 
@@ -277,7 +278,7 @@ function CompositeNodeImpl({ id, data, selected }: NodeProps): React.JSX.Element
               className="rounded-full px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide"
               style={{ backgroundColor: `${color}26`, color }}
             >
-              {NODE_KIND_LABELS[kind]}
+              {nodeLabelFor(kind)}
             </span>
             {hasChildren && !centered && !isGhost ? (
               <button

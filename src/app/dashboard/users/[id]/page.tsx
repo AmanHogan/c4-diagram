@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { use } from "react";
 import { Layers, Network } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface UserProfile {
   id: string;

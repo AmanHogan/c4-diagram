@@ -53,7 +53,7 @@ export async function GET(_request: Request, { params }: RouteParams): Promise<N
 }
 
 /**
- * Rename a folder. Owner only.
+ * Rename a folder and/or update its description. Owner only.
  */
 export async function PUT(request: Request, { params }: RouteParams): Promise<NextResponse> {
   const userId = await requireUserId();
@@ -68,8 +68,9 @@ export async function PUT(request: Request, { params }: RouteParams): Promise<Ne
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
-  const { name } = (await request.json()) as { name?: string };
+  const { name, description } = (await request.json()) as { name?: string; description?: string };
   if (name) folder.name = name;
+  if (description !== undefined) folder.description = description;
   await folder.save();
   return NextResponse.json({ ok: true });
 }
