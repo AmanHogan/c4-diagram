@@ -45,6 +45,7 @@ export async function GET(_request: Request, { params }: RouteParams): Promise<N
     id: raw._id.toString(),
     name: raw.name,
     description: raw.description,
+    coverImageUrl: raw.coverImageUrl,
     visibility: raw.visibility,
     folderId: raw.folderId,
     cards: raw.cards,
@@ -72,12 +73,14 @@ export async function PUT(request: Request, { params }: RouteParams): Promise<Ne
   const body = (await request.json()) as {
     name?: string;
     description?: string;
+    coverImageUrl?: string | null;
     cards?: FlashcardInput[];
     visibility?: "public" | "private";
     folderId?: string | null;
   };
   if (body.name) set.name = body.name;
   if (body.description !== undefined) set.description = body.description;
+  if (body.coverImageUrl !== undefined) set.coverImageUrl = body.coverImageUrl ?? undefined;
   if (body.cards) set.cards = body.cards as typeof set.cards;
   if (body.visibility) set.visibility = body.visibility;
   if (body.folderId !== undefined) set.folderId = body.folderId as never;

@@ -15,7 +15,7 @@ export async function GET(): Promise<NextResponse> {
   await connectToDatabase();
   const diagrams = await Diagram.find(
     { ownerId: userId },
-    { name: 1, description: 1, visibility: 1, updatedAt: 1, lastOpenedAt: 1, folderId: 1 },
+    { name: 1, description: 1, coverImageUrl: 1, visibility: 1, updatedAt: 1, lastOpenedAt: 1, folderId: 1 },
   )
     .sort({ lastOpenedAt: -1 })
     .lean();
@@ -24,6 +24,7 @@ export async function GET(): Promise<NextResponse> {
       id: d._id.toString(),
       name: d.name,
       description: d.description,
+      coverImageUrl: d.coverImageUrl,
       visibility: d.visibility,
       updatedAt: d.updatedAt,
       folderId: d.folderId,

@@ -1,9 +1,14 @@
-import { BookOpen, Workflow } from "lucide-react";
+import { PiCardsFill, PiGraphFill } from "react-icons/pi";
+import type { IconType } from "react-icons";
 
 export interface DashboardItem {
   type: "diagram" | "flashcard-set";
   id: string;
   name: string;
+  description?: string | null;
+  /** User-supplied cover image URL — falls back to {@link iconFor}'s icon
+   * when unset. */
+  coverImageUrl?: string | null;
   ownerName?: string;
   updatedAt: string;
 }
@@ -13,9 +18,15 @@ export function itemHref(item: DashboardItem): string {
   return item.type === "diagram" ? `/dashboard/diagram/${item.id}` : `/dashboard/flashcards/${item.id}`;
 }
 
-/** An open book for study material, a workflow for architecture — same
- * neutral treatment as the poster cards use by default (no per-type color).
- * Shared by the dashboard's carousels and the search page's explore strip. */
-export function iconFor(type: DashboardItem["type"]): typeof BookOpen {
-  return type === "diagram" ? Workflow : BookOpen;
+/** A stack of cards for flashcard sets, a node graph for diagrams — the
+ * default poster-card art shown when there's no cover image. Shared by the
+ * dashboard's carousels and the search page's explore strip. */
+export function iconFor(type: DashboardItem["type"]): IconType {
+  return type === "diagram" ? PiGraphFill : PiCardsFill;
+}
+
+/** The poster card's bottom-right CTA chip label — a visual affordance
+ * reinforcing that the whole card is clickable, worded per item type. */
+export function ctaLabelFor(type: DashboardItem["type"]): string {
+  return type === "diagram" ? "Open" : "Study";
 }

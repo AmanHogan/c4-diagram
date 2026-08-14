@@ -13,6 +13,9 @@ const flashcardSetSchema = new mongoose.Schema(
   {
     name: { type: String, required: true, trim: true },
     description: { type: String },
+    /** Optional user-supplied cover image URL, shown on poster cards instead
+     * of the default icon. Unset falls back to the icon. */
+    coverImageUrl: { type: String },
     ownerId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
     visibility: { type: String, enum: ["public", "private"], default: "private" },
     folderId: { type: mongoose.Schema.Types.ObjectId, ref: "Folder", default: null },

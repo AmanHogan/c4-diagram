@@ -11,6 +11,8 @@ interface DashboardItem {
   type: "diagram" | "flashcard-set";
   id: string;
   name: string;
+  description?: string | null;
+  coverImageUrl?: string | null;
   ownerName?: string;
   updatedAt: string;
 }
@@ -29,20 +31,23 @@ export async function GET(): Promise<NextResponse> {
   await connectToDatabase();
 
   const [recentDiagrams, recentSets, popularDiagrams, popularSets] = await Promise.all([
-    Diagram.find({ ownerId: userId }, { name: 1, lastOpenedAt: 1 })
+    Diagram.find({ ownerId: userId }, { name: 1, description: 1, coverImageUrl: 1, lastOpenedAt: 1 })
       .sort({ lastOpenedAt: -1 })
       .limit(RECENT_LIMIT)
       .lean(),
-    FlashcardSet.find({ ownerId: userId }, { name: 1, lastOpenedAt: 1 })
+    FlashcardSet.find({ ownerId: userId }, { name: 1, description: 1, coverImageUrl: 1, lastOpenedAt: 1 })
       .sort({ lastOpenedAt: -1 })
       .limit(RECENT_LIMIT)
       .lean(),
-    Diagram.find({ visibility: "public" }, { name: 1, ownerId: 1, updatedAt: 1 })
+    Diagram.find({ visibility: "public" }, { name: 1, description: 1, coverImageUrl: 1, ownerId: 1, updatedAt: 1 })
       .populate("ownerId", "name")
       .sort({ updatedAt: -1 })
       .limit(POPULAR_LIMIT)
       .lean(),
-    FlashcardSet.find({ visibility: "public" }, { name: 1, ownerId: 1, updatedAt: 1 })
+    FlashcardSet.find(
+      { visibility: "public" },
+      { name: 1, description: 1, coverImageUrl: 1, ownerId: 1, updatedAt: 1 },
+    )
       .populate("ownerId", "name")
       .sort({ updatedAt: -1 })
       .limit(POPULAR_LIMIT)
@@ -54,12 +59,16 @@ export async function GET(): Promise<NextResponse> {
       type: "diagram" as const,
       id: d._id.toString(),
       name: d.name,
+      description: d.description,
+      coverImageUrl: d.coverImageUrl,
       updatedAt: d.lastOpenedAt.toISOString(),
     })),
     ...recentSets.map((s) => ({
       type: "flashcard-set" as const,
       id: s._id.toString(),
       name: s.name,
+      description: s.description,
+      coverImageUrl: s.coverImageUrl,
       updatedAt: s.lastOpenedAt.toISOString(),
     })),
   ]
@@ -73,6 +82,8 @@ export async function GET(): Promise<NextResponse> {
         type: "diagram" as const,
         id: d._id.toString(),
         name: d.name,
+        description: d.description,
+        coverImageUrl: d.coverImageUrl,
         ownerName: (d.ownerId as unknown as { name: string }).name,
         updatedAt: d.updatedAt.toISOString(),
       })),
@@ -82,6 +93,8 @@ export async function GET(): Promise<NextResponse> {
         type: "flashcard-set" as const,
         id: s._id.toString(),
         name: s.name,
+        description: s.description,
+        coverImageUrl: s.coverImageUrl,
         ownerName: (s.ownerId as unknown as { name: string }).name,
         updatedAt: s.updatedAt.toISOString(),
       })),

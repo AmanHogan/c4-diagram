@@ -92,6 +92,7 @@ interface DiagramApiResponse extends DiagramDocument {
   id: string;
   name: string;
   description?: string;
+  coverImageUrl?: string;
   visibility: "public" | "private";
   folderId: string | null;
   isOwner: boolean;
@@ -512,6 +513,7 @@ function DiagramCanvasInner({ diagramId }: DiagramCanvasInnerProps): React.JSX.E
   const [saving, setSaving] = useState(false);
   const [diagramName, setDiagramName] = useState("");
   const [diagramDescription, setDiagramDescription] = useState("");
+  const [coverImageUrl, setCoverImageUrl] = useState("");
   const [visibility, setVisibility] = useState<"public" | "private">("private");
   const [folderId, setFolderId] = useState<string | null>(null);
   const [isOwner, setIsOwner] = useState(false);
@@ -872,6 +874,7 @@ function DiagramCanvasInner({ diagramId }: DiagramCanvasInnerProps): React.JSX.E
       diagramRef.current = { nodes: normalizedNodes, edges: data.edges };
       setDiagramName(data.name);
       setDiagramDescription(data.description ?? "");
+      setCoverImageUrl(data.coverImageUrl ?? "");
       setVisibility(data.visibility);
       setFolderId(data.folderId);
       setIsOwner(data.isOwner);
@@ -1258,6 +1261,18 @@ function DiagramCanvasInner({ diagramId }: DiagramCanvasInnerProps): React.JSX.E
     [diagramId],
   );
 
+  const handleCoverImageUrlChange = useCallback(
+    async (coverImageUrl: string) => {
+      setCoverImageUrl(coverImageUrl);
+      await fetch(`/api/diagrams/${diagramId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ coverImageUrl: coverImageUrl || null }),
+      });
+    },
+    [diagramId],
+  );
+
   const handleToggleVisibility = useCallback(async () => {
     const next = visibility === "public" ? "private" : "public";
     setVisibility(next);
@@ -1376,6 +1391,8 @@ function DiagramCanvasInner({ diagramId }: DiagramCanvasInnerProps): React.JSX.E
                 <EditDetailsButton
                   description={diagramDescription}
                   onDescriptionChange={(value) => void handleDescriptionChange(value)}
+                  coverImageUrl={coverImageUrl}
+                  onCoverImageUrlChange={(value) => void handleCoverImageUrlChange(value)}
                   visibility={visibility}
                   onToggleVisibility={() => void handleToggleVisibility()}
                   folderId={folderId}

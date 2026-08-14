@@ -1,13 +1,16 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Pencil, Globe, Lock } from "lucide-react";
+import { Pencil, Globe, Lock, Image as ImageIcon } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
 import { FolderPicker } from "@/components/library/folder-picker";
 
 interface EditDetailsButtonProps {
   description: string;
   onDescriptionChange: (value: string) => void;
+  coverImageUrl: string;
+  onCoverImageUrlChange: (value: string) => void;
   visibility: "public" | "private";
   onToggleVisibility: () => void;
   folderId: string | null;
@@ -25,6 +28,8 @@ interface EditDetailsButtonProps {
 export function EditDetailsButton({
   description,
   onDescriptionChange,
+  coverImageUrl,
+  onCoverImageUrlChange,
   visibility,
   onToggleVisibility,
   folderId,
@@ -63,6 +68,17 @@ export function EditDetailsButton({
               onChange={(e) => onDescriptionChange(e.target.value)}
               placeholder="Add a description…"
               className="min-h-[60px] text-xs"
+            />
+          </label>
+          <label className="flex flex-col gap-1">
+            <span className="flex items-center gap-1">
+              <ImageIcon className="h-3.5 w-3.5" /> Cover image URL
+            </span>
+            <Input
+              value={coverImageUrl}
+              onChange={(e) => onCoverImageUrlChange(e.target.value)}
+              placeholder="https://… (optional, defaults to an icon)"
+              className="h-7 text-xs"
             />
           </label>
           <div className="flex items-center justify-between">

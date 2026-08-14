@@ -57,6 +57,7 @@ interface FlashcardSetApiResponse {
   id: string;
   name: string;
   description?: string;
+  coverImageUrl?: string;
   visibility: "public" | "private";
   folderId: string | null;
   cards: Flashcard[];
@@ -351,6 +352,7 @@ export function FlashcardSetView({ setId }: FlashcardSetViewProps): React.JSX.El
   const [forking, setForking] = useState(false);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
+  const [coverImageUrl, setCoverImageUrl] = useState("");
   const [visibility, setVisibility] = useState<"public" | "private">("private");
   const [folderId, setFolderId] = useState<string | null>(null);
   const [isOwner, setIsOwner] = useState(false);
@@ -389,6 +391,7 @@ export function FlashcardSetView({ setId }: FlashcardSetViewProps): React.JSX.El
       if (cancelled) return;
       setName(data.name);
       setDescription(data.description ?? "");
+      setCoverImageUrl(data.coverImageUrl ?? "");
       setVisibility(data.visibility);
       setFolderId(data.folderId);
       setIsOwner(data.isOwner);
@@ -439,7 +442,7 @@ export function FlashcardSetView({ setId }: FlashcardSetViewProps): React.JSX.El
   const handleCreate = useCallback(async () => {
     setSaving(true);
     try {
-      const res = await persist({ name, description, cards });
+      const res = await persist({ name, description, coverImageUrl, cards });
       if (res.ok) {
         toast.success("Flashcard set created!");
         setIsNewSet(false);
@@ -450,12 +453,12 @@ export function FlashcardSetView({ setId }: FlashcardSetViewProps): React.JSX.El
     } finally {
       setSaving(false);
     }
-  }, [persist, name, description, cards]);
+  }, [persist, name, description, coverImageUrl, cards]);
 
   const handleCreateAndPractice = useCallback(async () => {
     setSaving(true);
     try {
-      const res = await persist({ name, description, cards });
+      const res = await persist({ name, description, coverImageUrl, cards });
       if (res.ok) {
         toast.success("Flashcard set created!");
         setIsNewSet(false);
@@ -466,12 +469,12 @@ export function FlashcardSetView({ setId }: FlashcardSetViewProps): React.JSX.El
     } finally {
       setSaving(false);
     }
-  }, [persist, name, description, cards, startStudy]);
+  }, [persist, name, description, coverImageUrl, cards, startStudy]);
 
   const handleSaveCards = useCallback(async () => {
     setSaving(true);
     try {
-      const res = await persist({ name, description, cards });
+      const res = await persist({ name, description, coverImageUrl, cards });
       if (res.ok) {
         toast.success("Changes saved");
         setMode("view");
@@ -481,7 +484,7 @@ export function FlashcardSetView({ setId }: FlashcardSetViewProps): React.JSX.El
     } finally {
       setSaving(false);
     }
-  }, [persist, name, description, cards]);
+  }, [persist, name, description, coverImageUrl, cards]);
 
   const handleToggleVisibility = useCallback(async () => {
     const next = visibility === "public" ? "private" : "public";
@@ -1010,6 +1013,12 @@ export function FlashcardSetView({ setId }: FlashcardSetViewProps): React.JSX.El
           onChange={(e) => setDescription(e.target.value)}
           placeholder="Add a description (optional)"
           className="min-h-[60px] text-base"
+        />
+        <Input
+          value={coverImageUrl}
+          onChange={(e) => setCoverImageUrl(e.target.value)}
+          placeholder="Cover image URL (optional, defaults to an icon)"
+          className="mt-3 h-10 text-sm"
         />
       </div>
 

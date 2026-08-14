@@ -15,7 +15,16 @@ export async function GET(): Promise<NextResponse> {
   await connectToDatabase();
   const sets = await FlashcardSet.find(
     { ownerId: userId },
-    { name: 1, description: 1, visibility: 1, updatedAt: 1, lastOpenedAt: 1, folderId: 1, cards: 1 },
+    {
+      name: 1,
+      description: 1,
+      coverImageUrl: 1,
+      visibility: 1,
+      updatedAt: 1,
+      lastOpenedAt: 1,
+      folderId: 1,
+      cards: 1,
+    },
   )
     .sort({ lastOpenedAt: -1 })
     .lean();
@@ -24,14 +33,11 @@ export async function GET(): Promise<NextResponse> {
       id: s._id.toString(),
       name: s.name,
       description: s.description,
+      coverImageUrl: s.coverImageUrl,
       visibility: s.visibility,
       updatedAt: s.updatedAt,
       folderId: s.folderId,
       cardCount: s.cards.length,
-      // First few terms, for the dashboard's poster-card preview list — the
-      // full `cards` array is already fetched above for cardCount, so this
-      // is free.
-      termsPreview: s.cards.slice(0, 8).map((c) => c.front),
     })),
   );
 }

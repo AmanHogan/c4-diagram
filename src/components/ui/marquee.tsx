@@ -33,7 +33,11 @@ export function Marquee({
       className={cn(
         // p-3 gives the cards' hover lift + shadow room so overflow-hidden
         // (required for the seamless loop) doesn't clip them at the edge.
+        // Same edge-fade mask as StaticCarousel: opaque through the middle,
+        // fading to transparent over the outer 48px each side, so looping
+        // cards dissolve out at the edge instead of popping in/out.
         "group flex w-full overflow-hidden p-3 [--duration:32s] [--gap:1rem]",
+        "[mask-image:linear-gradient(to_right,transparent,black_48px,black_calc(100%_-_48px),transparent)] [-webkit-mask-image:linear-gradient(to_right,transparent,black_48px,black_calc(100%_-_48px),transparent)]",
         className,
       )}
       style={{ gap: "var(--gap)" }}

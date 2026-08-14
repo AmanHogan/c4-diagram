@@ -40,6 +40,7 @@ export async function GET(_request: Request, { params }: RouteParams): Promise<N
     id: diagram._id.toString(),
     name: diagram.name,
     description: diagram.description,
+    coverImageUrl: diagram.coverImageUrl,
     visibility: diagram.visibility,
     folderId: diagram.folderId,
     nodes: diagram.nodes,
@@ -68,6 +69,7 @@ export async function PUT(request: Request, { params }: RouteParams): Promise<Ne
   const body = (await request.json()) as Partial<DiagramDocument> & {
     name?: string;
     description?: string;
+    coverImageUrl?: string | null;
     visibility?: "public" | "private";
     folderId?: string | null;
   };
@@ -75,6 +77,7 @@ export async function PUT(request: Request, { params }: RouteParams): Promise<Ne
   if (body.edges) diagram.edges = body.edges as typeof diagram.edges;
   if (body.name) diagram.name = body.name;
   if (body.description !== undefined) diagram.description = body.description;
+  if (body.coverImageUrl !== undefined) diagram.coverImageUrl = body.coverImageUrl ?? undefined;
   if (body.visibility) diagram.visibility = body.visibility;
   if (body.folderId !== undefined) diagram.folderId = body.folderId as never;
   diagram.lastOpenedAt = new Date();

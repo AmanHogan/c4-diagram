@@ -1,24 +1,22 @@
 "use client";
 
 import { useCallback, useRef, useState } from "react";
-import { BookOpen, Workflow } from "lucide-react";
 import { Marquee } from "@/components/ui/marquee";
 import { StaticCarousel } from "@/components/dashboard/static-carousel";
 import { PosterCard, VerticalEmptyCard } from "@/components/dashboard/vertical-item-card";
 import { PosterCardSkeletonRow } from "@/components/dashboard/poster-card-skeleton";
 import { useRefetchOnFocus } from "@/lib/use-refetch-on-focus";
 import { useDelayedLoading } from "@/lib/use-delayed-loading";
-import { iconFor, itemHref, type DashboardItem } from "@/lib/dashboard-item";
+import { ctaLabelFor, iconFor, itemHref, type DashboardItem } from "@/lib/dashboard-item";
 
 interface LibraryItem {
   id: string;
   name: string;
   description?: string;
+  coverImageUrl?: string;
   visibility: "public" | "private";
   updatedAt: string;
   cardCount?: number;
-  /** First few flashcard fronts, for the poster card's preview list. */
-  termsPreview?: string[];
 }
 
 /** Minimum row length before an empty/CTA card gets appended to pad it out
@@ -108,8 +106,11 @@ export default function DashboardHome(): React.JSX.Element {
                 key={`${item.type}-${item.id}`}
                 href={itemHref(item)}
                 icon={iconFor(item.type)}
+                coverImageUrl={item.coverImageUrl}
                 title={item.name}
-                meta={new Date(item.updatedAt).toLocaleDateString()}
+                description={item.description}
+                date={new Date(item.updatedAt).toLocaleDateString()}
+                ctaLabel={ctaLabelFor(item.type)}
               />
             ))}
             {recent.length < MIN_CAROUSEL_LENGTH ? (
@@ -128,15 +129,17 @@ export default function DashboardHome(): React.JSX.Element {
               <PosterCard
                 key={set.id}
                 href={`/dashboard/flashcards/${set.id}`}
-                icon={BookOpen}
+                icon={iconFor("flashcard-set")}
+                coverImageUrl={set.coverImageUrl}
                 title={set.name}
                 description={set.description}
-                items={set.termsPreview}
-                meta={set.cardCount !== undefined ? `${set.cardCount} cards` : undefined}
+                date={new Date(set.updatedAt).toLocaleDateString()}
+                ctaLabel={ctaLabelFor("flashcard-set")}
+                className="w-72"
               />
             ))}
             {flashcardSets.length < MIN_CAROUSEL_LENGTH ? (
-              <VerticalEmptyCard href="/dashboard/flashcards" label="Create a flashcard set" />
+              <VerticalEmptyCard href="/dashboard/flashcards" label="Create a flashcard set" className="w-72" />
             ) : null}
           </StaticCarousel>
         )}
@@ -154,14 +157,17 @@ export default function DashboardHome(): React.JSX.Element {
               <PosterCard
                 key={diagram.id}
                 href={`/dashboard/diagram/${diagram.id}`}
-                icon={Workflow}
+                icon={iconFor("diagram")}
+                coverImageUrl={diagram.coverImageUrl}
                 title={diagram.name}
                 description={diagram.description}
-                meta={new Date(diagram.updatedAt).toLocaleDateString()}
+                date={new Date(diagram.updatedAt).toLocaleDateString()}
+                ctaLabel={ctaLabelFor("diagram")}
+                className="w-72"
               />
             ))}
             {diagrams.length < MIN_CAROUSEL_LENGTH ? (
-              <VerticalEmptyCard href="/dashboard/diagrams" label="Create a diagram" />
+              <VerticalEmptyCard href="/dashboard/diagrams" label="Create a diagram" className="w-72" />
             ) : null}
           </StaticCarousel>
         )}
@@ -186,10 +192,11 @@ export default function DashboardHome(): React.JSX.Element {
                 key={`${item.type}-${item.id}`}
                 href={itemHref(item)}
                 icon={iconFor(item.type)}
+                coverImageUrl={item.coverImageUrl}
                 title={item.name}
-                meta={
-                  item.ownerName ? `by ${item.ownerName} · ${new Date(item.updatedAt).toLocaleDateString()}` : undefined
-                }
+                description={item.description}
+                date={new Date(item.updatedAt).toLocaleDateString()}
+                ctaLabel={ctaLabelFor(item.type)}
               />
             ))}
           </Marquee>

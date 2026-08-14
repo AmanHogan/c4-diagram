@@ -12,7 +12,7 @@ import { ListRowSkeletonStack } from "@/components/library/list-row-skeleton";
 import { cn } from "@/lib/utils";
 import { useRefetchOnFocus } from "@/lib/use-refetch-on-focus";
 import { useDelayedLoading } from "@/lib/use-delayed-loading";
-import { iconFor, itemHref, type DashboardItem } from "@/lib/dashboard-item";
+import { ctaLabelFor, iconFor, itemHref, type DashboardItem } from "@/lib/dashboard-item";
 
 interface SearchDiagram {
   id: string;
@@ -194,12 +194,11 @@ export default function SearchPage(): React.JSX.Element {
                     key={`${item.type}-${item.id}`}
                     href={itemHref(item)}
                     icon={iconFor(item.type)}
+                    coverImageUrl={item.coverImageUrl}
                     title={item.name}
-                    meta={
-                      item.ownerName
-                        ? `by ${item.ownerName} · ${new Date(item.updatedAt).toLocaleDateString()}`
-                        : undefined
-                    }
+                    description={item.description}
+                    date={new Date(item.updatedAt).toLocaleDateString()}
+                    ctaLabel={ctaLabelFor(item.type)}
                   />
                 ))}
               </Marquee>
