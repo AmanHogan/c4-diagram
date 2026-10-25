@@ -138,7 +138,7 @@ never a scale transform).
   sentences, not short labels (e.g. "Pick up where you left off." not
   "Recent").
 
-## Motion — what animates and what doesn't
+## Motion — what animates and what doesn't 
 
 This is the part worth internalizing rather than copying literally, since
 it's a set of *rules*, decided deliberately in this project:
